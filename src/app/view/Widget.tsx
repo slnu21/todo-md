@@ -7,7 +7,7 @@ import type { Action } from "../core/actions";
 import type { PlainDate } from "../core/date";
 import { INBOX_ID, type TodoData } from "../core/model";
 import { activeProjects } from "../core/select";
-import type { LangPref, Settings, ThemePref } from "../core/settings";
+import type { Settings } from "../core/settings";
 import { defaultReport } from "../core/report";
 import { io } from "../io/io";
 import type { AppState } from "./store";
@@ -16,7 +16,8 @@ import { Calendar, type CalView } from "./Calendar";
 import { Detail } from "./Detail";
 import { ItemList } from "./ItemList";
 import { QuickInput } from "./QuickInput";
-import { GearIcon, Seg, useT } from "./ui";
+import { SettingsPanel } from "./SettingsPanel";
+import { GearIcon, useT } from "./ui";
 
 export function Widget({
   state, today, dispatch, updateSettings, onQuit, onOpenDataDir, onDismiss,
@@ -78,33 +79,20 @@ export function Widget({
           <GearIcon />
           {t("bar.settings")}
         </button>
-        <button type="button" className="iconbtn" aria-label={t("bar.close")} title={t("bar.close")} onClick={onQuit}>×</button>
+        {/* × = 트레이로 숨기기(종료는 트레이 메뉴·설정). 브라우저에는 트레이가 없어 두지 않는다. */}
+        {io.kind === "tauri" && (
+          <button type="button" className="iconbtn" aria-label={t("bar.hide")} title={t("bar.hide")} onClick={() => void io.hideWidget()}>×</button>
+        )}
       </div>
 
       {settingsOpen && (
-        <div className="pop" id="settings-pop" role="dialog" aria-label={t("bar.settings")}>
-          <div>
-            <h4>{t("set.theme")}</h4>
-            <Seg<ThemePref>
-              items={[{ v: "system", label: t("opt.system") }, { v: "light", label: t("theme.light") }, { v: "dark", label: t("theme.dark") }]}
-              value={settings.theme}
-              onPick={(v) => updateSettings((s) => ({ ...s, theme: v }))}
-            />
-          </div>
-          <div>
-            <h4>{t("set.lang")}</h4>
-            <Seg<LangPref>
-              items={[{ v: "system", label: t("opt.system") }, { v: "ko", label: "한국어" }, { v: "en", label: "English" }]}
-              value={settings.lang}
-              onPick={(v) => updateSettings((s) => ({ ...s, lang: v }))}
-            />
-          </div>
-          <div>
-            <h4>{t("set.data")}</h4>
-            <p className="path">{state.dataDir}</p>
-            <button type="button" className="btn ghost" onClick={onOpenDataDir}>{t("set.openData")}</button>
-          </div>
-        </div>
+        <SettingsPanel
+          settings={settings}
+          dataDir={state.dataDir}
+          onChange={updateSettings}
+          onOpenDataDir={onOpenDataDir}
+          onQuit={onQuit}
+        />
       )}
 
       {state.blocked && <div className="banner" role="alert">{t(state.blocked === "newerVersion" ? "err.newerVersion" : "err.notJson")}</div>}
@@ -136,7 +124,10 @@ export function Widget({
         today={today}
         selDate={selDate}
         onClearDate={() => setSelDate("")}
-        onOpen={(id) => setOpenId((cur) => (cur === id ? null : id))}
+        onOpen={(id, anchorY) =>
+          // 데스크톱은 위젯 옆 별도 창(바깥을 누르면 숨는다), 브라우저는 위젯 위 패널.
+          io.kind === "tauri" ? void io.openDetail(id, anchorY) : setOpenId((cur) => (cur === id ? null : id))
+        }
         dispatch={dispatch}
       />
       {reportOpen && (
