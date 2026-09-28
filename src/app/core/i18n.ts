@@ -1,0 +1,264 @@
+/**
+ * ko/en 문자열. 의존성 없이 사전 + `t()` — 이 앱의 문자열 양에 i18next 는 과하다.
+ * **라벨과 개념 이름은 여기 한 곳에서만 읽는다**(Cairn 에서 상태가 화면마다 '대기'·'예정'으로 갈라진 적이 있다).
+ * 두 언어의 키 집합이 같아야 한다 — 테스트가 지킨다.
+ */
+import { weekdayIndex, type PlainDate } from "./date";
+import type { LangPref } from "./settings";
+
+export type Lang = "ko" | "en";
+
+const ko = {
+  "app.name": "TODO.md",
+  "bar.report": "보고",
+  "bar.settings": "설정",
+  "bar.close": "닫기",
+  "inbox.name": "미분류",
+
+  "set.theme": "테마",
+  "set.lang": "언어",
+  "set.data": "데이터 폴더",
+  "set.openData": "폴더 열기",
+  "opt.system": "시스템",
+  "theme.light": "라이트",
+  "theme.dark": "다크",
+
+  "q.project": "프로젝트",
+  "q.newProject": "＋ 새 프로젝트",
+  "q.newName": "새 프로젝트 이름",
+  "q.create": "만들기",
+  "q.cancel": "취소",
+  "q.title": "할 일을 적고 Enter",
+  "q.titleAria": "할 일",
+  "q.add": "추가",
+  "q.imp": "중요도",
+  "q.due": "마감일",
+  "q.owner": "담당",
+
+  "cal.month": "{y}년 {m}월",
+  "cal.prev": "이전 달",
+  "cal.next": "다음 달",
+  "cal.today": "오늘",
+  "cal.m": "월",
+  "cal.w": "주",
+  "cal.hasDue": ", 마감 있음",
+  "cal.holiday": ", {name}",
+
+  "status.todo": "할 일",
+  "status.doing": "진행",
+  "status.done": "완료",
+  "imp.1": "낮음",
+  "imp.2": "보통",
+  "imp.3": "높음",
+  "st.aria": "상태 {s}, 누르면 {n}",
+  "imp.aria": "중요도 {l}, 누르면 바뀜",
+  "imp.title": "중요도 {l}",
+
+  "due.late": "{n}일 지남",
+  "due.today": "오늘",
+  "due.tomorrow": "내일",
+  "ago.yesterday": "어제",
+
+  "sub.count": "하위 {a}/{b}",
+  "sub.add": "하위 추가",
+  "sub.ph": "하위 항목 추가 후 Enter",
+  "memo.count": "메모 {n}",
+
+  "list.left": "남은 {n}",
+  "list.late": "지남 {n}",
+  "list.addTo": "+ {p}에 추가",
+  "list.addAria": "{p}에 할 일 추가",
+  "list.showDone": "완료 {n}개 보기",
+  "list.hideDone": "완료 숨기기",
+  "list.filter": "{date} 마감 {n}건",
+  "list.all": "전체 보기",
+  "list.emptyDay": "이날 마감인 할 일이 없습니다. 위 입력줄에 적으면 이날 마감으로 들어갑니다.",
+  "list.emptyAll": "아직 할 일이 없습니다. 위 입력줄에 적고 Enter를 누르세요.",
+
+  "gh.archive": "보관",
+  "arc.aria": "{p} 보관",
+  "arc.confirm": "남은 할 일이 {n}건 있습니다. 어떻게 할까요?",
+  "arc.doneAll": "모두 완료하고 보관",
+  "arc.keep": "그대로 보관",
+  "arc.cancel": "취소",
+  "arc.title": "보관한 프로젝트 {n}개",
+  "arc.show": "보기",
+  "arc.hide": "숨기기",
+  "arc.meta": "완료 {d}, 남은 {o}",
+  "arc.restore": "되돌리기",
+
+  "pp.close": "닫기",
+  "pp.titleAria": "할 일 제목",
+  "pp.status": "상태",
+  "pp.imp": "중요도",
+  "pp.due": "마감",
+  "pp.owner": "담당",
+  "pp.ownerPh": "비우면 나",
+  "pp.subs": "하위 항목",
+  "pp.memos": "메모 기록",
+  "pp.lines": "{n}줄",
+  "pp.emptyLog": "아직 기록이 없습니다. 진행 상황, 받은 답, 막힌 점을 한 줄씩 남겨 두세요.",
+  "pp.memoPh": "메모를 적고 Enter (시각이 자동으로 붙음)",
+  "pp.memoAria": "메모",
+  "pp.created": "{date} {time} 만듦",
+  "pp.delete": "할 일 삭제",
+  "pp.confirm": "한 번 더 누르면 삭제",
+  "pp.today": " (오늘)",
+  "memo.delAria": "이 메모 지우기",
+  "sub.delAria": "이 하위 항목 지우기",
+
+  "err.notJson": "할 일 파일을 읽지 못했습니다(형식이 깨졌습니다). 덮어쓰지 않도록 저장을 멈췄습니다. 데이터 폴더의 todo.json.bak1~3 에서 되살릴 수 있습니다.",
+  "err.newerVersion": "더 새 버전의 TODO.md 가 만든 파일입니다. 덮어쓰지 않도록 저장을 멈췄습니다. 앱을 업데이트하세요.",
+  "err.save": "저장하지 못했습니다: {msg}",
+  "warn.fixed": "파일에서 {n}개 항목을 고치거나 건너뛰었습니다.",
+} as const;
+
+export type Key = keyof typeof ko;
+
+const en: Record<Key, string> = {
+  "app.name": "TODO.md",
+  "bar.report": "Report",
+  "bar.settings": "Settings",
+  "bar.close": "Close",
+  "inbox.name": "Unsorted",
+
+  "set.theme": "Theme",
+  "set.lang": "Language",
+  "set.data": "Data folder",
+  "set.openData": "Open folder",
+  "opt.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+
+  "q.project": "Project",
+  "q.newProject": "＋ New project",
+  "q.newName": "New project name",
+  "q.create": "Create",
+  "q.cancel": "Cancel",
+  "q.title": "Type a to-do, press Enter",
+  "q.titleAria": "To-do",
+  "q.add": "Add",
+  "q.imp": "Importance",
+  "q.due": "Due date",
+  "q.owner": "Owner",
+
+  "cal.month": "{M} {y}",
+  "cal.prev": "Previous month",
+  "cal.next": "Next month",
+  "cal.today": "Today",
+  "cal.m": "M",
+  "cal.w": "W",
+  "cal.hasDue": ", has due items",
+  "cal.holiday": ", {name}",
+
+  "status.todo": "To do",
+  "status.doing": "Doing",
+  "status.done": "Done",
+  "imp.1": "Low",
+  "imp.2": "Normal",
+  "imp.3": "High",
+  "st.aria": "Status {s}; click for {n}",
+  "imp.aria": "Importance {l}; click to change",
+  "imp.title": "Importance {l}",
+
+  "due.late": "{n}d overdue",
+  "due.today": "Today",
+  "due.tomorrow": "Tomorrow",
+  "ago.yesterday": "Yesterday",
+
+  "sub.count": "Sub {a}/{b}",
+  "sub.add": "Add sub-item",
+  "sub.ph": "Add a sub-item, press Enter",
+  "memo.count": "Memos {n}",
+
+  "list.left": "{n} left",
+  "list.late": "{n} overdue",
+  "list.addTo": "+ Add to {p}",
+  "list.addAria": "Add a to-do to {p}",
+  "list.showDone": "Show {n} done",
+  "list.hideDone": "Hide done",
+  "list.filter": "Due {date}: {n}",
+  "list.all": "Show all",
+  "list.emptyDay": "Nothing is due that day. Anything you add above will be due that day.",
+  "list.emptyAll": "No to-dos yet. Type one above and press Enter.",
+
+  "gh.archive": "Archive",
+  "arc.aria": "Archive {p}",
+  "arc.confirm": "{n} to-dos are still open. What should happen to them?",
+  "arc.doneAll": "Mark all done, archive",
+  "arc.keep": "Archive as is",
+  "arc.cancel": "Cancel",
+  "arc.title": "{n} archived projects",
+  "arc.show": "Show",
+  "arc.hide": "Hide",
+  "arc.meta": "{d} done, {o} open",
+  "arc.restore": "Restore",
+
+  "pp.close": "Close",
+  "pp.titleAria": "To-do title",
+  "pp.status": "Status",
+  "pp.imp": "Priority",
+  "pp.due": "Due",
+  "pp.owner": "Owner",
+  "pp.ownerPh": "Blank means me",
+  "pp.subs": "Sub-items",
+  "pp.memos": "Memo log",
+  "pp.lines": "{n}",
+  "pp.emptyLog": "No entries yet. Note progress, replies and blockers, one line at a time.",
+  "pp.memoPh": "Type a memo, press Enter (time is added)",
+  "pp.memoAria": "Memo",
+  "pp.created": "Created {date} {time}",
+  "pp.delete": "Delete to-do",
+  "pp.confirm": "Click again to delete",
+  "pp.today": " (today)",
+  "memo.delAria": "Delete this memo",
+  "sub.delAria": "Delete this sub-item",
+
+  "err.notJson": "The to-do file could not be read (it is damaged). Saving is paused so nothing is overwritten. You can restore it from todo.json.bak1–3 in the data folder.",
+  "err.newerVersion": "This file was written by a newer TODO.md. Saving is paused so nothing is overwritten. Please update the app.",
+  "err.save": "Could not save: {msg}",
+  "warn.fixed": "Fixed or skipped {n} entries in the file.",
+};
+
+export const DICT: Record<Lang, Record<Key, string>> = { ko, en };
+
+export type Vars = Record<string, string | number>;
+
+export function t(lang: Lang, key: Key, vars?: Vars): string {
+  const s = DICT[lang][key] ?? DICT.ko[key] ?? key;
+  return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (vars[k] != null ? String(vars[k]) : m)) : s;
+}
+
+/** 시스템이면 표시 언어가 한국어일 때 한국어, 그 밖은 영어. */
+export function resolveLang(pref: LangPref, systemLanguage: string | undefined): Lang {
+  if (pref !== "system") return pref;
+  return (systemLanguage ?? "").toLowerCase().startsWith("ko") ? "ko" : "en";
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** 일요일 시작(달력 머리줄). */
+export const DOW_SHORT: Record<Lang, string[]> = {
+  ko: ["일", "월", "화", "수", "목", "금", "토"],
+  en: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+};
+const DOW_LONG: Record<Lang, string[]> = {
+  ko: ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"],
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+};
+
+export const monthTitle = (lang: Lang, year: number, month: number): string =>
+  t(lang, "cal.month", { y: year, m: month, M: MONTHS[month - 1] });
+
+/** 화면용 짧은 날짜: 9월 28일 / Sep 28 */
+export function mdLabel(lang: Lang, d: PlainDate): string {
+  const m = +d.slice(5, 7);
+  const day = +d.slice(8, 10);
+  return lang === "en" ? `${MONTHS[m - 1]} ${day}` : `${m}월 ${day}일`;
+}
+
+/** 메모 기록의 날짜 머리: 9월 28일 월요일 (오늘) / Monday, Sep 28 (today) */
+export function longDay(lang: Lang, d: PlainDate, today: PlainDate): string {
+  const w = DOW_LONG[lang][weekdayIndex(d)];
+  const s = lang === "en" ? `${w}, ${mdLabel(lang, d)}` : `${mdLabel(lang, d)} ${w}`;
+  return s + (d === today ? t(lang, "pp.today") : "");
+}
