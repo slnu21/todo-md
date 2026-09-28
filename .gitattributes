@@ -1,0 +1,10 @@
+# 기본은 git 에 맡기되, 셸이 읽는 파일은 LF 로 고정한다.
+# 전역 core.autocrlf=true 에서 훅이 CRLF 가 되면 셔뱅이 "/bin/sh\r" 로 깨진다.
+* text=auto
+.githooks/* text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
+*.icns binary
+*.woff2 binary

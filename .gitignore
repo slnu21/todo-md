@@ -25,3 +25,9 @@ release/
 .idea/
 .DS_Store
 Thumbs.db
+# target 경로는 머신마다 다르다 (D: 로 뺀다)
+src/src-tauri/.cargo/
+
+# === e2e ===
+test-results/
+playwright-report/
