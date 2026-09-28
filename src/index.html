@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TODO.md</title>
+    <!-- 셸은 문서가 아니라 앱이다 — 바깥은 스크롤하지 않고, 스크롤은 각 패널이 가진다. -->
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root { height: 100%; }
+      body { margin: 0; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- 프런트 소스는 app/ 에 있다. 최상위 폴더가 이미 src/ 라서 src/src 가 되는 걸 피한다. -->
+    <script type="module" src="/app/main.tsx"></script>
+  </body>
+</html>

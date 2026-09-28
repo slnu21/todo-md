@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- TODO.md 아이콘: 괘선 종이 위 체크 하나와 형광펜 한 줄. 목업의 '책상 위 수첩' 모티프 -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#1e1e1e"/>
+  <rect x="236" y="176" width="552" height="672" rx="56" fill="#ffffff"/>
+  <rect x="300" y="468" width="424" height="84" rx="16" fill="#facc15"/>
+  <path d="M312 310 l58 58 l112 -120" fill="none" stroke="#2563eb" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="524" y="284" width="200" height="40" rx="20" fill="#1e1e1e"/>
+  <rect x="330" y="490" width="300" height="40" rx="20" fill="#1e1e1e"/>
+  <rect x="330" y="636" width="394" height="40" rx="20" fill="#c9ced6"/>
+  <rect x="330" y="736" width="260" height="40" rx="20" fill="#c9ced6"/>
+</svg>
