@@ -57,6 +57,11 @@ try {
   const geo = await page.evaluate(() => ({ w: innerWidth, h: innerHeight, sx: screenX, sy: screenY, screenW: screen.availWidth, screenH: screen.availHeight, dpr: devicePixelRatio }));
   await page.screenshot({ path: out });
   console.log(JSON.stringify({ out, dataDir, ...geo }));
+  // 강제 종료 전에 앱 스스로 끝내게 한다 — 도킹(화면 예약)을 풀 기회를 준다(빈 띠 방지).
+  if (!args.includes("--keep")) {
+    await page.evaluate(() => window.__TAURI_INTERNALS__.invoke("quit_app")).catch(() => {});
+    await new Promise((r) => setTimeout(r, 600));
+  }
   await browser.close().catch(() => {});
 } finally {
   if (!args.includes("--keep")) app.kill();

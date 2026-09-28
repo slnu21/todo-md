@@ -4,6 +4,24 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 
+/** Rust appbar::Placement 와 같은 모양. */
+export interface Placement {
+  mode: "dock" | "float";
+  edge: "left" | "right";
+  monitor: string;
+  width: number;
+}
+
+export interface MonitorInfo {
+  name: string;
+  primary: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+}
+
 export interface Io {
   kind: "tauri" | "browser";
   /** 데이터 폴더 안의 파일. 없으면 null. */
@@ -14,8 +32,18 @@ export interface Io {
   backup(name: string): Promise<void>;
   dataDir(): Promise<string>;
   openDataDir(): Promise<void>;
-  /** 위젯을 작업 영역 오른쪽 전체 높이에 놓고 보인다(M1). 브라우저에서는 아무것도 안 한다. */
-  placeWidget(width: number): Promise<void>;
+  /** 위젯 배치(도킹/떠 있기 · 가장자리 · 모니터 · 폭). 기억해 두고 해상도가 바뀌면 Rust 가 다시 맞춘다. */
+  applyPlacement(p: Placement): Promise<void>;
+  listMonitors(): Promise<MonitorInfo[]>;
+  /** 트레이로 숨기기(예약도 푼다). */
+  hideWidget(): Promise<void>;
+  getAutostart(): Promise<boolean>;
+  setAutostart(on: boolean): Promise<void>;
+  setTrayLabels(toggle: string, quit: string): Promise<void>;
+  /** 할 일 상세 별도 창(데스크톱). `anchorY` = 누른 줄의 위젯 안 높이(px). */
+  openDetail(itemId: string, anchorY: number): Promise<void>;
+  getDetailTarget(): Promise<string | null>;
+  hideDetail(): Promise<void>;
   quit(): Promise<void>;
   /** 예시 데이터 요청(스크린샷·e2e). 데이터 파일이 없을 때만 쓴다. */
   seedRequested(): Promise<boolean>;
@@ -32,7 +60,15 @@ const tauriIo: Io = {
   backup: (name) => invoke("backup_data_file", { name }),
   dataDir: () => invoke<string>("get_data_dir"),
   openDataDir: () => invoke("open_data_dir"),
-  placeWidget: (width) => invoke("place_widget", { width }),
+  applyPlacement: (placement) => invoke("apply_placement", { placement }),
+  listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
+  hideWidget: () => invoke("hide_widget"),
+  getAutostart: () => invoke<boolean>("get_autostart"),
+  setAutostart: (on) => invoke("set_autostart", { on }),
+  setTrayLabels: (toggle, quit) => invoke("set_tray_labels", { toggle, quit }),
+  openDetail: (itemId, anchorY) => invoke("open_detail_window", { itemId, anchorY }),
+  getDetailTarget: () => invoke<string | null>("get_detail_target"),
+  hideDetail: () => invoke("hide_detail"),
   quit: () => invoke("quit_app"),
   seedRequested: () => invoke<boolean>("seed_requested"),
   openReportWindow: (title) => invoke("open_report_window", { title }),
@@ -59,7 +95,16 @@ const browserIo: Io = {
   backup: async () => {},
   dataDir: async () => "(browser localStorage)",
   openDataDir: async () => {},
-  placeWidget: async () => {},
+  applyPlacement: async () => {},
+  // 브라우저에는 모니터를 물을 방법이 없다 — 설정 화면이 그림을 그릴 수 있게 화면 하나를 흉내 낸다.
+  listMonitors: async () => [{ name: "", primary: true, x: 0, y: 0, width: screen.width, height: screen.height, scale: devicePixelRatio }],
+  hideWidget: async () => {},
+  getAutostart: async () => false,
+  setAutostart: async () => {},
+  setTrayLabels: async () => {},
+  openDetail: async () => {},
+  getDetailTarget: async () => null,
+  hideDetail: async () => {},
   quit: async () => {},
   seedRequested: async () => new URLSearchParams(location.search).get("seed") === "sample",
   openReportWindow: async () => {},

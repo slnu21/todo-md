@@ -177,6 +177,21 @@ const ko = {
   "r.outAria": "주간보고 결과",
   "r.stat": "실적 {a}건, 계획 {b}건, {n}줄",
   "r.empty": "이 기간에 넣을 할 일이 없습니다. 기간을 넓히거나 할 일에 메모를 남겨 보세요.",
+  "bar.hide": "숨기기 (트레이에서 다시 열기)",
+  "set.position": "위치 — 모니터 가장자리를 누르세요",
+  "set.mode": "방식",
+  "mode.dock": "도킹",
+  "mode.float": "떠 있기",
+  "set.width": "폭",
+  "set.autostart": "로그인 시 자동 실행",
+  "set.quit": "TODO.md 종료",
+  "set.note": "도킹하면 작업 표시줄처럼 화면 한쪽을 차지해 다른 창이 덮지 않습니다. 모니터가 연결 해제되면 주 모니터의 같은 쪽으로 옮깁니다.",
+  "mon.primary": "주 모니터",
+  "mon.n": "모니터 {n}",
+  "mon.left": "{m} 왼쪽",
+  "mon.right": "{m} 오른쪽",
+  "tray.toggle": "보이기 / 숨기기",
+  "tray.quit": "종료",
 } as const;
 
 export type Key = keyof typeof ko;
@@ -350,6 +365,21 @@ const en: Record<Key, string> = {
   "r.outAria": "Weekly report output",
   "r.stat": "{a} done, {b} planned, {n} lines",
   "r.empty": "Nothing to report for this period. Widen the period or add memos to your to-dos.",
+  "bar.hide": "Hide (reopen from the tray)",
+  "set.position": "Position — click a monitor edge",
+  "set.mode": "Mode",
+  "mode.dock": "Dock",
+  "mode.float": "Float",
+  "set.width": "Width",
+  "set.autostart": "Launch at sign-in",
+  "set.quit": "Quit TODO.md",
+  "set.note": "Docked, it reserves a strip of the screen like the taskbar so other windows never cover it. If that monitor is disconnected, it moves to the same side of the primary monitor.",
+  "mon.primary": "Primary",
+  "mon.n": "Monitor {n}",
+  "mon.left": "{m}, left edge",
+  "mon.right": "{m}, right edge",
+  "tray.toggle": "Show / hide",
+  "tray.quit": "Quit",
 };
 
 export const DICT: Record<Lang, Record<Key, string>> = { ko, en };

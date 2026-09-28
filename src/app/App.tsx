@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { plainOf } from "./core/date";
-import { resolveLang, type Lang } from "./core/i18n";
+import { resolveLang, t, type Lang } from "./core/i18n";
 import { relocalize } from "./core/report";
 import { sampleData } from "./core/sample";
 import { io } from "./io/io";
@@ -39,10 +39,12 @@ export function App() {
     return () => { clearInterval(timer); stopHost(); window.removeEventListener("beforeunload", flush); };
   }, []);
 
-  // 창 배치는 처음 읽은 뒤 한 번(폭은 설정값). 보이는 것도 이때 — 기본 위치에서 튀어 오르는 모습을 안 보이게.
+  // 창 배치: 처음 읽은 뒤, 그리고 도킹 설정이 바뀔 때마다. 보이는 것도 이때 — 기본 위치에서 튀어 오르는 모습을 안 보이게.
+  // 해상도·작업 표시줄이 바뀔 때 다시 맞추는 건 Rust 가 기억한 값으로 한다(appbar.rs).
+  const dock = state.settings.dock;
   useEffect(() => {
-    if (state.loaded) void io.placeWidget(state.settings.dock.width).catch(() => {});
-  }, [state.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (state.loaded) void io.applyPlacement(dock).catch(() => {});
+  }, [state.loaded, dock]);
 
   // 테마: 시스템이면 표시 없음(CSS 가 prefers-color-scheme 을 따른다), 직접 고르면 data-theme 으로 고정.
   useEffect(() => {
@@ -52,7 +54,10 @@ export function App() {
   }, [state.settings.theme]);
 
   const lang = resolveLang(state.settings.lang, navigator.language);
-  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    void io.setTrayLabels(t(lang, "tray.toggle"), t(lang, "tray.quit")).catch(() => {});
+  }, [lang]);
   // 언어를 바꾸면 주간보고 규칙의 **기본값인 것만** 새 언어로(직접 고친 값은 그대로). 규칙을 안 고쳤으면(null) 할 일 없음.
   const prevLang = useRef<Lang | null>(null);
   useEffect(() => {

@@ -6,7 +6,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+mod appbar;
+
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 /// 백업 세대 수. 단일 파일 포맷의 약점이 덮어쓰기 사고라 여기만 방어한다.
 const BACKUP_GENERATIONS: usize = 3;
@@ -123,30 +125,95 @@ fn open_data_dir(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// 위젯을 주 모니터 작업 영역(작업 표시줄 제외)의 오른쪽 끝에 **세로 전체 높이**로 놓고 보인다.
-/// M1 은 배치만 한다 — 화면 예약(AppBar 도킹)·모니터 선택·왼쪽은 M3.
-/// `width` 는 논리 픽셀(CSS px). 배율을 곱해 물리 픽셀로 놓는다.
+/// 위젯 배치(도킹/떠 있기 · 왼쪽/오른쪽 · 모니터 · 폭). 기억해 두고 해상도·작업 영역이 바뀌면 다시 맞춘다(appbar.rs).
 #[tauri::command]
-fn place_widget(window: WebviewWindow, width: u32) -> Result<(), String> {
-    let monitor = match window.primary_monitor().map_err(|e| e.to_string())? {
-        Some(m) => m,
-        None => window
-            .current_monitor()
-            .map_err(|e| e.to_string())?
-            .ok_or("모니터를 찾지 못했다")?,
+fn apply_placement(window: WebviewWindow, placement: appbar::Placement) -> Result<(), String> {
+    appbar::apply(placement)?;
+    window.show().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_monitors() -> Vec<appbar::MonitorInfo> {
+    appbar::list_monitors()
+}
+
+/// 위젯 숨기기/보이기(트레이). 숨길 때 화면 예약도 푼다.
+fn set_widget_visible(app: &AppHandle, visible: bool) {
+    if let Some(w) = app.get_webview_window("main") {
+        if visible {
+            let _ = w.show();
+            let _ = appbar::set_hidden(false);
+            let _ = w.set_focus();
+        } else {
+            let _ = appbar::set_hidden(true);
+            let _ = w.hide();
+            if let Some(d) = app.get_webview_window("detail") {
+                let _ = d.hide();
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn hide_widget(app: AppHandle) {
+    set_widget_visible(&app, false);
+}
+
+const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+const RUN_VALUE: &str = "TODO.md";
+
+/// reg.exe 를 창 없이 돌린다(CREATE_NO_WINDOW). 레지스트리 FFI 를 늘리지 않으려고.
+fn reg(args: &[&str]) -> std::io::Result<std::process::Output> {
+    let mut c = std::process::Command::new("reg.exe");
+    c.args(args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        c.creation_flags(0x0800_0000);
+    }
+    c.output()
+}
+
+/// 로그인 시 자동 실행 — HKCU Run 키. 값이 **지금 실행 중인 exe** 를 가리킬 때만 켜진 것으로 본다
+/// (포터블 zip 을 옮기면 옛 경로가 남는다 — 그땐 꺼진 것으로 보여 다시 켜게 한다).
+#[tauri::command]
+fn get_autostart() -> bool {
+    let exe = std::env::current_exe().map(|p| p.to_string_lossy().to_lowercase()).unwrap_or_default();
+    match reg(&["query", RUN_KEY, "/v", RUN_VALUE]) {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_lowercase().contains(&exe),
+        _ => false,
+    }
+}
+
+#[tauri::command]
+fn set_autostart(on: bool) -> Result<(), String> {
+    let r = if on {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let data = format!("\"{}\"", exe.display());
+        reg(&["add", RUN_KEY, "/v", RUN_VALUE, "/t", "REG_SZ", "/d", &data, "/f"])
+    } else {
+        reg(&["delete", RUN_KEY, "/v", RUN_VALUE, "/f"])
     };
-    let area = monitor.work_area();
-    let scale = monitor.scale_factor();
-    let w = ((width as f64) * scale).round() as u32;
-    let x = area.position.x + area.size.width as i32 - w as i32;
-    window
-        .set_size(PhysicalSize::new(w, area.size.height))
-        .map_err(|e| e.to_string())?;
-    window
-        .set_position(PhysicalPosition::new(x, area.position.y))
-        .map_err(|e| e.to_string())?;
-    window.show().map_err(|e| e.to_string())?;
+    match r {
+        Ok(o) if o.status.success() || !on => Ok(()),
+        Ok(o) => Err(String::from_utf8_lossy(&o.stderr).into_owned()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// 트레이 메뉴 글자(화면 언어를 따른다).
+#[tauri::command]
+fn set_tray_labels(app: AppHandle, toggle: String, quit: String) -> Result<(), String> {
+    if let Some(items) = app.try_state::<TrayItems>() {
+        items.toggle.set_text(toggle).map_err(|e| e.to_string())?;
+        items.quit.set_text(quit).map_err(|e| e.to_string())?;
+    }
     Ok(())
+}
+
+struct TrayItems {
+    toggle: tauri::menu::MenuItem<tauri::Wry>,
+    quit: tauri::menu::MenuItem<tauri::Wry>,
 }
 
 /// 주간보고 창. 이미 있으면 앞으로 가져온다. 데이터는 위젯 창이 주인 — 보고 창은 이벤트로 받고 보낸다(bridge.ts).
@@ -172,6 +239,81 @@ async fn open_report_window(app: AppHandle, title: String) -> Result<(), String>
     Ok(())
 }
 
+/// 상세 창에 띄울 할 일. 새로 뜬 창은 이벤트를 놓칠 수 있어(아직 듣기 전) 여기서 물어 간다.
+struct DetailTarget(std::sync::Mutex<Option<String>>);
+
+#[tauri::command]
+fn get_detail_target(target: tauri::State<DetailTarget>) -> Option<String> {
+    target.0.lock().ok().and_then(|t| t.clone())
+}
+
+/// 할 일 상세 = 위젯 **안쪽 옆**에 뜨는 별도 창(테두리 없음·항상 위). `anchor_y` = 누른 항목의 위젯 안 높이(논리 px).
+/// 바깥을 누르면(다른 창이 활성화되면) 숨는다 — appbar::attach_autohide(WM_ACTIVATE). **async**: 창 생성은 동기 커맨드에서 교착(pitfalls).
+#[tauri::command]
+async fn open_detail_window(app: AppHandle, item_id: String, anchor_y: f64) -> Result<(), String> {
+    use tauri::Emitter;
+    if let Some(t) = app.try_state::<DetailTarget>() {
+        *t.0.lock().map_err(|_| "잠금 실패")? = Some(item_id.clone());
+    }
+    let main = app.get_webview_window("main").ok_or("main 창이 없다")?;
+    let scale = main.scale_factor().map_err(|e| e.to_string())?;
+    let pos = main.outer_position().map_err(|e| e.to_string())?;
+    let size = main.outer_size().map_err(|e| e.to_string())?;
+    let mon = main.current_monitor().map_err(|e| e.to_string())?.ok_or("모니터를 찾지 못했다")?;
+    let area = *mon.work_area();
+    let (dw, dh) = ((360.0 * scale).round() as i32, ((640.0 * scale).round() as i32).min(area.size.height as i32));
+    let gap = (6.0 * scale).round() as i32;
+    let x = if appbar::current_edge() == "left" { pos.x + size.width as i32 + gap } else { pos.x - dw - gap };
+    let top = area.position.y;
+    let bottom = area.position.y + area.size.height as i32;
+    let y = (pos.y + (anchor_y * scale).round() as i32 - (12.0 * scale) as i32).clamp(top, (bottom - dh).max(top));
+
+    let w = match app.get_webview_window("detail") {
+        Some(w) => {
+            w.emit("todo://detail", &item_id).map_err(|e| e.to_string())?;
+            w
+        }
+        None => {
+            let w = WebviewWindowBuilder::new(&app, "detail", WebviewUrl::App("index.html".into()))
+                .initialization_script("window.__TODOMD_VIEW__ = 'detail';")
+                .title("TODO.md")
+                .decorations(false)
+                .shadow(false) // 그림자용 보이지 않는 테두리(양쪽 8px)를 없앤다 — 안 끄면 폭이 360 → 344 로 줄어 보인다
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .resizable(false)
+                .visible(false)
+                .build()
+                .map_err(|e| e.to_string())?;
+            // SetWindowSubclass 는 **창을 만든 스레드(메인)** 에서만 된다 — async 커맨드(작업 스레드)에서 부르면
+            // 조용히 실패해 바깥 클릭에도 숨지 않았다. 메인 스레드로 넘겨 붙인다.
+            #[cfg(windows)]
+            {
+                let h = w.hwnd().map_err(|e| e.to_string())?.0 as isize;
+                app.run_on_main_thread(move || appbar::attach_autohide(h)).map_err(|e| e.to_string())?;
+            }
+            w
+        }
+    };
+    #[cfg(windows)]
+    appbar::place_topmost(w.hwnd().map_err(|e| e.to_string())?.0 as isize, x, y, dw, dh)?;
+    w.show().map_err(|e| e.to_string())?;
+    w.set_focus().map_err(|e| e.to_string())
+}
+
+/// 창이 보이는가(검증 스크립트용 — WebView2 는 창을 숨겨도 visibilityState 를 안 바꿀 때가 있어 페이지로는 모른다).
+#[tauri::command]
+fn is_window_visible(app: AppHandle, label: String) -> bool {
+    app.get_webview_window(&label).and_then(|w| w.is_visible().ok()).unwrap_or(false)
+}
+
+#[tauri::command]
+fn hide_detail(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("detail") {
+        let _ = w.hide();
+    }
+}
+
 /// 사용자가 저장 대화상자에서 고른 경로에 텍스트를 쓴다(주간보고 .md). 대화상자를 거친 경로만 온다.
 #[tauri::command]
 fn write_text_to(path: String, contents: String) -> Result<(), String> {
@@ -187,11 +329,19 @@ fn seed_requested() -> bool {
 
 #[tauri::command]
 fn quit_app(app: AppHandle) {
+    appbar::release();
     app.exit(0);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 해제 ③ — 릴리스는 panic=abort 라 되감기가 없다. 패닉 훅이 화면 예약을 풀 마지막 기회.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        appbar::release();
+        default_hook(info);
+    }));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -200,12 +350,77 @@ pub fn run() {
             write_data_file,
             backup_data_file,
             open_data_dir,
-            place_widget,
+            apply_placement,
+            list_monitors,
+            hide_widget,
+            get_autostart,
+            set_autostart,
+            set_tray_labels,
+            open_detail_window,
+            get_detail_target,
+            hide_detail,
+            is_window_visible,
             seed_requested,
             open_report_window,
             write_text_to,
             quit_app
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|app| {
+            let main = app.get_webview_window("main").ok_or("main 창이 없다")?;
+            #[cfg(windows)]
+            appbar::attach(main.hwnd()?.0 as isize);
+
+            // 트레이: 왼쪽 클릭 = 보이기/숨기기, 메뉴 = 보이기/숨기기 · 종료. 작업 표시줄 버튼은 없다(skipTaskbar).
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+            let toggle = MenuItem::with_id(app, "toggle", "보이기 / 숨기기", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&toggle, &quit])?;
+            app.manage(TrayItems { toggle: toggle.clone(), quit: quit.clone() });
+            app.manage(DetailTarget(std::sync::Mutex::new(None)));
+            let mut tray = TrayIconBuilder::with_id("main")
+                .tooltip("TODO.md")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, e| match e.id().as_ref() {
+                    "toggle" => {
+                        let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(true);
+                        set_widget_visible(app, !visible);
+                    }
+                    "quit" => {
+                        appbar::release();
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, e| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+                        let app = tray.app_handle();
+                        let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(true);
+                        set_widget_visible(app, !visible);
+                    }
+                });
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+            tray.build(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            // 해제 ① — 위젯 창이 닫히면(Alt+F4 등) 예약을 풀고 앱을 끝낸다. 보고 창이 닫히는 건 상관없다.
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed = event {
+                    appbar::release();
+                    window.app_handle().exit(0);
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            // 해제 ② — 어떤 길로 끝나든 마지막에 한 번 더(멱등).
+            if let tauri::RunEvent::Exit = event {
+                appbar::release();
+            }
+        });
 }

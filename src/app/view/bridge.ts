@@ -19,10 +19,11 @@ const STATE = "todo://state";
 const ACTION = "todo://action";
 const HELLO = "todo://hello";
 
-/** 보고 창인가 — 데스크톱은 Rust 가 초기화 스크립트로 심은 표시, 브라우저는 `?view=report`(개발용). */
-export const isReportView = (): boolean =>
-  (window as unknown as { __TODOMD_VIEW__?: string }).__TODOMD_VIEW__ === "report" ||
-  new URLSearchParams(location.search).get("view") === "report";
+/** 이 창이 무엇인가 — 데스크톱은 Rust 가 초기화 스크립트로 심은 표시, 브라우저는 `?view=`(개발용). */
+export function viewKind(): "widget" | "report" | "detail" {
+  const v = (window as unknown as { __TODOMD_VIEW__?: string }).__TODOMD_VIEW__ ?? new URLSearchParams(location.search).get("view");
+  return v === "report" || v === "detail" ? v : "widget";
+}
 
 /** 위젯 창에서 한 번. 반환값은 정리 함수. */
 export async function startHost(store: Store): Promise<() => void> {

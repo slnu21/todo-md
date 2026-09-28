@@ -20,7 +20,8 @@ export function ItemList({
   today: PlainDate;
   selDate: PlainDate | "";
   onClearDate: () => void;
-  onOpen: (id: string) => void;
+  /** `anchorY` = 누른 줄의 위젯 안 높이 — 데스크톱 상세 창을 그 높이에 띄운다. */
+  onOpen: (id: string, anchorY: number) => void;
   dispatch: Dispatch;
 }) {
   const { lang, t } = useT();
@@ -90,7 +91,7 @@ export function ItemList({
                 today={today}
                 expanded={expanded.has(it.id)}
                 onExpand={() => setExpanded((s) => toggle(s, it.id))}
-                onOpen={() => onOpen(it.id)}
+                onOpen={(y) => onOpen(it.id, y)}
                 dispatch={dispatch}
               />
             ))}
@@ -134,7 +135,7 @@ function Row({
   today: PlainDate;
   expanded: boolean;
   onExpand: () => void;
-  onOpen: () => void;
+  onOpen: (anchorY: number) => void;
   dispatch: Dispatch;
 }) {
   const { lang, t } = useT();
@@ -161,7 +162,12 @@ function Row({
           <StatusIcon status={item.status} />
         </button>
         <div className="body">
-          <button type="button" className="title-btn" aria-haspopup="dialog" onClick={onOpen}>
+          <button
+            type="button"
+            className="title-btn"
+            aria-haspopup="dialog"
+            onClick={(e) => onOpen(e.currentTarget.closest("li")?.getBoundingClientRect().top ?? 0)}
+          >
             <span className="t">{item.title}</span>
           </button>
           {memo && <div className="lastmemo"><time dateTime={memo.at}>{memoWhen}</time>{memo.text}</div>}
