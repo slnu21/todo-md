@@ -52,3 +52,11 @@ describe("todo.json 읽기", () => {
     expect(r.warnings.length).toBe(4); // 프로젝트 2 + 할 일 1 + 미분류 이동 1
   });
 });
+
+describe("버전 이전", () => {
+  it("v1 파일(report 없음)은 v2 로 열리고 report 는 null", () => {
+    const r = parseData(JSON.stringify({ version: 1, projects: [], items: [] }));
+    expect(r.ok && r.data.version).toBe(2);
+    expect(r.ok && r.data.report).toBeNull();
+  });
+});

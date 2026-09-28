@@ -44,5 +44,6 @@ export function sampleData(today: PlainDate): TodoData {
         memos: [memo(-3, "16:05", "DNS 전환 완료, 구 서버는 다음 달 반납")] }),
       item({ projectId: INBOX_ID, title: "건강검진 예약", due: day(9) }),
     ],
+    report: null,
   };
 }

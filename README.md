@@ -15,7 +15,7 @@
 [릴리스](https://github.com/slnu21/todo-md/releases)에서 zip 을 받아 압축을 풀고 `TODO.md.exe` 를 실행하세요. 설치가 필요 없습니다.
 
 - Windows 10(1803+) / 11 · Microsoft Edge WebView2 런타임(Windows 11 기본 탑재)
-- 데이터: `%APPDATA%\com.slnu21.todo-md\todo.json` — 설정에서 폴더를 열 수 있습니다. 시작할 때마다 `todo.json.bak1~3` 으로 백업합니다.
+- 데이터: `%APPDATA%\com.slnu21.todo-md\todo.json` — 설정에서 폴더를 열 수 있습니다. 시작할 때와 날이 바뀔 때 `todo.json.bak1~3` 으로 백업합니다.
 - 인터넷·계정이 필요 없습니다. 전 과정 오프라인입니다.
 
 ## 주요 기능
@@ -28,6 +28,8 @@
 - **메모 기록** — Enter 마다 한 줄, 적은 날짜와 시각이 자동으로 붙습니다.
 - **작은 달력** — 마감이 있는 날에 점, 한국 공휴일 표시. 날짜를 누르면 그날 마감만 보입니다.
 - **프로젝트 보관** — 끝난 프로젝트는 보관해 목록에서 치우고, 언제든 되돌립니다.
+- **주간보고** — 할 일과 메모 기록을 금주 실적·차주 계획 마크다운으로. 복사하거나 .md 로 저장. 프리셋 셋, 간단 설정, 템플릿 직접 편집.
+- **오래된 완료 항목 보관** — 완료한 지 30일 지나면 `archive\YYYY.json` 으로 옮겨 평소 파일을 작게.
 - **테마·언어** — 시스템 / 라이트 / 다크, 시스템 / 한국어 / English.
 
 ## 개발
@@ -67,7 +69,7 @@ When urgent work lands in several projects at once, a project-by-project managem
 Download a zip from [Releases](https://github.com/slnu21/todo-md/releases), unpack it, run `TODO.md.exe`. No installation.
 
 - Windows 10 (1803+) / 11 · Microsoft Edge WebView2 runtime (bundled with Windows 11)
-- Data: `%APPDATA%\com.slnu21.todo-md\todo.json` — open the folder from Settings. Backed up to `todo.json.bak1–3` on every start.
+- Data: `%APPDATA%\com.slnu21.todo-md\todo.json` — open the folder from Settings. Backed up to `todo.json.bak1–3` on start and when the day changes.
 - No internet, no account. Fully offline.
 
 ## Features
@@ -80,6 +82,8 @@ Download a zip from [Releases](https://github.com/slnu21/todo-md/releases), unpa
 - **Memo log** — one line per Enter, stamped with the date and time.
 - **Mini calendar** — dots on days with due items, Korean public holidays. Click a day to see only what is due then.
 - **Archive projects** — tidy finished projects away and restore them any time.
+- **Weekly report** — turns to-dos and memos into a This week / Next week Markdown report. Copy it or save as .md. Three presets, quick settings, or edit the templates directly.
+- **Archive for old completed items** — to-dos completed over 30 days ago move to `archive\YYYY.json`, keeping the everyday file small.
 - **Theme and language** — System / Light / Dark, System / 한국어 / English.
 
 ## Development

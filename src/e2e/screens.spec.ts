@@ -89,3 +89,29 @@ test.describe("screens", () => {
     await shot(page, "10-narrow-long");
   });
 });
+
+test.describe("screens — 주간보고", () => {
+  test("보고 창 크기(940×760)", async ({ page }) => {
+    await page.setViewportSize({ width: 940, height: 760 });
+    await fresh(page);
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await shot(page, "11-report-wide");
+    await page.getByRole("button", { name: "메일 붙여넣기용" }).click();
+    await shot(page, "12-report-mail-custom");
+  });
+  test("좁은 폭(360) — 한 칸으로", async ({ page }) => {
+    await fresh(page);
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await shot(page, "13-report-narrow");
+  });
+  test("다크 + 영어", async ({ page }) => {
+    await page.setViewportSize({ width: 940, height: 760 });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await fresh(page);
+    await page.getByRole("button", { name: /설정/ }).click();
+    await page.getByRole("button", { name: "English" }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Report", exact: true }).click();
+    await shot(page, "14-report-dark-en");
+  });
+});

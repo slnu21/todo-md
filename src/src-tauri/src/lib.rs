@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 /// 백업 세대 수. 단일 파일 포맷의 약점이 덮어쓰기 사고라 여기만 방어한다.
 const BACKUP_GENERATIONS: usize = 3;
@@ -149,6 +149,36 @@ fn place_widget(window: WebviewWindow, width: u32) -> Result<(), String> {
     Ok(())
 }
 
+/// 주간보고 창. 이미 있으면 앞으로 가져온다. 데이터는 위젯 창이 주인 — 보고 창은 이벤트로 받고 보낸다(bridge.ts).
+///
+/// **async 여야 한다.** Windows 에서 동기 커맨드 안에서 창을 만들면 메인 스레드 교착으로 WebView 가 멈춘다
+/// (CDP 로 보면 "Target crashed"). Tauri 문서의 제약.
+#[tauri::command]
+async fn open_report_window(app: AppHandle, title: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("report") {
+        let _ = w.unminimize();
+        return w.set_focus().map_err(|e| e.to_string());
+    }
+    // 쿼리(`index.html?view=report`)를 넘기면 `?` 까지 파일 경로로 읽혀 빈 창(about:blank)이 된다.
+    // 같은 index.html 을 열고, 이 창이 보고 창이라는 표시를 초기화 스크립트로 심는다(bridge.ts isReportView).
+    WebviewWindowBuilder::new(&app, "report", WebviewUrl::App("index.html".into()))
+        .initialization_script("window.__TODOMD_VIEW__ = 'report';")
+        .title(title)
+        .inner_size(940.0, 760.0)
+        .min_inner_size(420.0, 480.0)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 사용자가 저장 대화상자에서 고른 경로에 텍스트를 쓴다(주간보고 .md). 대화상자를 거친 경로만 온다.
+#[tauri::command]
+fn write_text_to(path: String, contents: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    fs::write(&p, contents).map_err(|e| io_err("쓰기", &p, e))
+}
+
 /// 스크린샷·e2e 용 예시 데이터 요청(`TODOMD_SEED=sample`). 데이터 파일이 **없을 때만** 쓰인다.
 #[tauri::command]
 fn seed_requested() -> bool {
@@ -163,6 +193,7 @@ fn quit_app(app: AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_data_dir,
             read_data_file,
@@ -171,6 +202,8 @@ pub fn run() {
             open_data_dir,
             place_widget,
             seed_requested,
+            open_report_window,
+            write_text_to,
             quit_app
         ])
         .run(tauri::generate_context!())

@@ -1,30 +1,42 @@
 /**
  * 루트: 데이터를 읽고, 테마·언어를 적용하고, 위젯을 그린다. 데스크톱이면 창을 작업 영역 오른쪽 전체 높이에 놓는다.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { plainOf } from "./core/date";
-import { resolveLang } from "./core/i18n";
+import { resolveLang, type Lang } from "./core/i18n";
+import { relocalize } from "./core/report";
 import { sampleData } from "./core/sample";
 import { io } from "./io/io";
-import { store, useStore } from "./view/store";
+import { startHost } from "./view/bridge";
+import { DATA_FILE, store, useStore } from "./view/store";
 import { LangContext } from "./view/ui";
 import { Widget } from "./view/Widget";
-import "./view/app.css";
 
 export function App() {
   const state = useStore();
   const [today, setToday] = useState(() => plainOf(new Date()));
 
   useEffect(() => {
+    let stopHost = () => {};
     void (async () => {
       const seed = await io.seedRequested().catch(() => false);
       await store.load(seed ? () => sampleData(plainOf(new Date())) : undefined);
+      stopHost = await startHost(store); // 보고 창에 상태를 뿌리고 변경을 받는다(데스크톱만)
     })();
     // 자정을 넘기면 '오늘'이 바뀐다 — 늘 떠 있는 창이라 1분마다 확인한다.
-    const timer = setInterval(() => setToday(plainOf(new Date())), 60_000);
+    // 날이 바뀌면 백업도 한 번 더(시작할 때 + 하루 한 번). 며칠씩 켜 두는 앱이라 시작 백업만으로는 오래된다.
+    let backedUp = plainOf(new Date());
+    const timer = setInterval(() => {
+      const now = plainOf(new Date());
+      setToday(now);
+      if (now !== backedUp && !store.getSnapshot().blocked) {
+        backedUp = now;
+        void store.flush().then(() => io.backup(DATA_FILE)).catch(() => {});
+      }
+    }, 60_000);
     const flush = () => { void store.flush(); };
     window.addEventListener("beforeunload", flush);
-    return () => { clearInterval(timer); window.removeEventListener("beforeunload", flush); };
+    return () => { clearInterval(timer); stopHost(); window.removeEventListener("beforeunload", flush); };
   }, []);
 
   // 창 배치는 처음 읽은 뒤 한 번(폭은 설정값). 보이는 것도 이때 — 기본 위치에서 튀어 오르는 모습을 안 보이게.
@@ -41,6 +53,14 @@ export function App() {
 
   const lang = resolveLang(state.settings.lang, navigator.language);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  // 언어를 바꾸면 주간보고 규칙의 **기본값인 것만** 새 언어로(직접 고친 값은 그대로). 규칙을 안 고쳤으면(null) 할 일 없음.
+  const prevLang = useRef<Lang | null>(null);
+  useEffect(() => {
+    const prev = prevLang.current;
+    prevLang.current = lang;
+    const report = store.getSnapshot().data.report;
+    if (prev && prev !== lang && report) store.dispatch({ type: "setReport", rules: relocalize(report, prev, lang) });
+  }, [lang]);
 
   if (!state.loaded) return <main className="widget" data-testid="loading" />;
 

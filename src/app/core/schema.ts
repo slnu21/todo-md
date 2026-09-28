@@ -11,6 +11,7 @@ import {
   DATA_VERSION, emptyData, INBOX_ID,
   type Importance, type Item, type Memo, type Project, type Status, type SubItem, type TodoData,
 } from "./model";
+import { parseReportRules } from "./report";
 
 export type ParseResult =
   | { ok: true; data: TodoData; warnings: string[] }
@@ -82,7 +83,13 @@ export function parseData(text: string): ParseResult {
         .map((m): Memo => ({ id: str(m.id), at: str(m.at), text: str(m.text) })),
     });
   }
-  return { ok: true, data: { version: DATA_VERSION, projects, items }, warnings };
+  // v1 → v2: report 필드가 새로 생겼다(없으면 null = 기본값). 틀린 규칙은 버리고 기본값으로.
+  let report = null;
+  if (raw.report != null) {
+    report = parseReportRules(raw.report);
+    if (!report) warnings.push("주간보고 규칙을 읽지 못해 기본값으로 되돌림");
+  }
+  return { ok: true, data: { version: DATA_VERSION, projects, items, report }, warnings };
 }
 
 /** 사람이 열어 봐도 읽히게 들여쓰기 2칸. */

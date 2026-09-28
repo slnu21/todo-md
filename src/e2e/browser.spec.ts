@@ -149,3 +149,84 @@ test("깨진 파일은 덮어쓰지 않는다", async ({ page }) => {
   await page.waitForTimeout(700);
   expect(await page.evaluate(() => localStorage.getItem("todomd:todo.json"))).toBe("{ broken");
 });
+
+test.describe("주간보고", () => {
+  test.use({ viewport: { width: 940, height: 760 }, permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("보고를 열면 마크다운이 나오고, 프리셋·기간·템플릿을 바꾸면 바로 바뀐다", async ({ page }) => {
+    await fresh(page, "/?seed=sample");
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    const out = page.getByTestId("report-out");
+    await expect(out).toContainText("## 금주 실적");
+    await expect(out).toContainText("### 홈페이지 개편"); // 보관했어도 기간 안 완료는 실적에
+    await page.getByRole("button", { name: "메일 붙여넣기용" }).click();
+    await expect(out).toContainText("■ 금주 실적");
+    await expect(page.locator("details.adv")).toHaveAttribute("open", "");
+    await page.getByRole("button", { name: "마크다운 기본" }).click();
+    await page.getByLabel("상태 표시").selectOption("back");
+    await expect(out).toContainText("- Store 재제출 (시작 메뉴 항목 정리한 패키지) [진행]");
+    await page.locator("#r-actual-title").fill("이번 주 한 일");
+    await expect(out).toContainText("## 이번 주 한 일");
+  });
+
+  test("복사하면 결과가 클립보드에 들어간다", async ({ page }) => {
+    await fresh(page, "/?seed=sample");
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await page.getByRole("button", { name: "복사" }).click();
+    await expect(page.getByRole("status")).toContainText("복사했습니다");
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip.split("\n")[0]).toMatch(/^## 금주 실적 \(/);
+  });
+
+  test("규칙은 데이터 파일에 저장된다(다시 열어도 그대로)", async ({ page }) => {
+    await fresh(page, "/?seed=sample");
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await page.getByRole("button", { name: "간단 요약" }).click();
+    await page.waitForTimeout(700);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("todomd:todo.json")!));
+    expect(saved.version).toBe(2);
+    expect(saved.report.preset).toBe("brief");
+    await page.reload();
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await expect(page.getByRole("button", { name: "간단 요약" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("언어를 바꾸면 기본 제목은 따라가고 고친 제목은 남는다", async ({ page }) => {
+    await fresh(page, "/?seed=sample");
+    await page.getByRole("button", { name: "보고", exact: true }).click();
+    await page.locator("#r-plan-title").fill("다음 주에 할 일");
+    await page.getByRole("dialog", { name: "주간보고" }).getByRole("button", { name: "닫기" }).click();
+    await page.getByRole("button", { name: /설정/ }).click();
+    await page.getByRole("button", { name: "English" }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Report", exact: true }).click();
+    const out = page.getByTestId("report-out");
+    await expect(out).toContainText(/## This week \(\d+\/\d+ ~/); // 기본 형식 M/D 는 영어도 M/D
+    await expect(out).toContainText("## 다음 주에 할 일");
+  });
+});
+
+test("완료한 지 30일 지난 할 일은 보관 파일로 옮겨진다", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem("todomd:todo.json", JSON.stringify({
+      version: 2, report: null,
+      projects: [{ id: "p1", name: "Atlas" }, { id: "inbox", name: "" }],
+      items: [
+        { id: "old", projectId: "p1", title: "오래전에 끝낸 일", status: "done", importance: 2, assignee: "", due: "",
+          createdAt: "2025-11-01T09:00", startedAt: null, doneAt: "2025-11-02T09:00", subs: [], memos: [] },
+        { id: "new", projectId: "p1", title: "지금 할 일", status: "todo", importance: 2, assignee: "", due: "",
+          createdAt: "2026-09-01T09:00", startedAt: null, doneAt: null, subs: [], memos: [] },
+      ],
+    }));
+  });
+  await page.reload();
+  await expect(page.locator("li.item")).toHaveCount(1);
+  await page.waitForTimeout(700);
+  const todo = await page.evaluate(() => JSON.parse(localStorage.getItem("todomd:todo.json")!));
+  const arch = await page.evaluate(() => JSON.parse(localStorage.getItem("todomd:archive/2025.json")!));
+  expect(todo.items.map((i: { id: string }) => i.id)).toEqual(["new"]);
+  expect(arch.items.map((i: { id: string }) => i.id)).toEqual(["old"]);
+  expect(arch.projects).toEqual({ p1: "Atlas" });
+});
