@@ -9,6 +9,7 @@
  */
 import type { LocalStamp, PlainDate } from "./date";
 import { INBOX_ID, type Importance, type Item, type Status, type TodoData } from "./model";
+import type { ReportRules } from "./report";
 
 export interface Ctx {
   now: LocalStamp;
@@ -32,7 +33,8 @@ export type Action =
   | { type: "toggleSub"; itemId: string; subId: string; done: boolean }
   | { type: "deleteSub"; itemId: string; subId: string }
   | { type: "addMemo"; itemId: string; text: string }
-  | { type: "deleteMemo"; itemId: string; memoId: string };
+  | { type: "deleteMemo"; itemId: string; memoId: string }
+  | { type: "setReport"; rules: ReportRules | null };
 
 export const NEXT_STATUS: Record<Status, Status> = { todo: "doing", doing: "done", done: "todo" };
 
@@ -154,5 +156,7 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
     }
     case "deleteMemo":
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.filter((m) => m.id !== action.memoId) }));
+    case "setReport":
+      return { ...data, report: action.rules };
   }
 }

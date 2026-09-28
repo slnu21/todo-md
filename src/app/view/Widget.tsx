@@ -8,7 +8,10 @@ import type { PlainDate } from "../core/date";
 import { INBOX_ID, type TodoData } from "../core/model";
 import { activeProjects } from "../core/select";
 import type { LangPref, Settings, ThemePref } from "../core/settings";
+import { defaultReport } from "../core/report";
+import { io } from "../io/io";
 import type { AppState } from "./store";
+import { ReportView } from "./ReportView";
 import { Calendar, type CalView } from "./Calendar";
 import { Detail } from "./Detail";
 import { ItemList } from "./ItemList";
@@ -27,8 +30,9 @@ export function Widget({
   onOpenDataDir: () => void;
   onDismiss: () => void;
 }) {
-  const { t } = useT();
+  const { lang, t } = useT();
   const { data, settings } = state;
+  const [reportOpen, setReportOpen] = useState(false);
   const [selDate, setSelDate] = useState<PlainDate | "">("");
   const [cal, setCal] = useState<CalView>(() => {
     const d = new Date();
@@ -42,12 +46,13 @@ export function Widget({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (settingsOpen) setSettingsOpen(false);
+      if (reportOpen) setReportOpen(false);
+      else if (settingsOpen) setSettingsOpen(false);
       else if (openId) setOpenId(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [settingsOpen, openId]);
+  }, [settingsOpen, openId, reportOpen]);
 
   const projects = activeProjects(data);
   const projectName = (id: string) => (id === INBOX_ID ? t("inbox.name") : data.projects.find((p) => p.id === id)?.name ?? "");
@@ -56,6 +61,13 @@ export function Widget({
     <div className="widget" data-testid="widget">
       <div className="w-bar">
         <span className="name">{t("app.name")}</span>
+        <button
+          type="button"
+          className="chipbtn"
+          onClick={() => (io.kind === "tauri" ? void io.openReportWindow(`TODO.md — ${t("r.title")}`) : setReportOpen(true))}
+        >
+          {t("bar.report")}
+        </button>
         <button
           type="button"
           className="chipbtn"
@@ -127,6 +139,18 @@ export function Widget({
         onOpen={(id) => setOpenId((cur) => (cur === id ? null : id))}
         dispatch={dispatch}
       />
+      {reportOpen && (
+        <div className="report-overlay" role="dialog" aria-label={t("r.title")}>
+          <ReportView
+            data={data}
+            rules={data.report ?? defaultReport(lang)}
+            today={today}
+            lang={lang}
+            onRules={(rules) => dispatch({ type: "setReport", rules })}
+            onClose={() => setReportOpen(false)}
+          />
+        </div>
+      )}
       {openItem && (
         <Detail
           item={openItem}

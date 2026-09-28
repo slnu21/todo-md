@@ -7,7 +7,8 @@
  */
 import { useSyncExternalStore } from "react";
 import { reduce, type Action } from "../core/actions";
-import { stampOf } from "../core/date";
+import { archiveName, byYear, mergeArchive, parseArchive, splitOldDone } from "../core/archive";
+import { plainOf, stampOf } from "../core/date";
 import { emptyData, type TodoData } from "../core/model";
 import { parseData, serializeData } from "../core/schema";
 import { parseSettings, serializeSettings, type Settings } from "../core/settings";
@@ -72,7 +73,29 @@ export class Store {
     }
     // 시작할 때 한 번 백업(.bak1~3) — 저장마다 돌리면 0.5초 전 상태만 남는다.
     await io.backup(DATA_FILE).catch(() => {});
-    this.set({ loaded: true, data: r.data, settings, dataDir, fixed: r.warnings.length });
+    const data = await this.archiveOldDone(r.data);
+    this.set({ loaded: true, data, settings, dataDir, fixed: r.warnings.length });
+    if (data !== r.data) this.dataSaver.schedule(serializeData(data));
+  }
+
+  /**
+   * 완료한 지 30일 지난 할 일을 archive/YYYY.json 으로. **보관 파일을 먼저 쓰고** 성공한 해만 todo.json 에서 뺀다 —
+   * 쓰다 실패하면 그 해 항목은 그대로 남는다(다음 시작 때 다시 시도). 중복은 id 로 걸러진다.
+   */
+  private async archiveOldDone(data: TodoData): Promise<TodoData> {
+    const { moved } = splitOldDone(data, plainOf(new Date()));
+    if (!moved.length) return data;
+    const done = new Set<string>();
+    for (const [year, items] of byYear(moved)) {
+      try {
+        const merged = mergeArchive(parseArchive(await io.read(archiveName(year))), items, data);
+        await io.write(archiveName(year), `${JSON.stringify(merged, null, 2)}\n`);
+        items.forEach((i) => done.add(i.id));
+      } catch {
+        /* 이번엔 못 옮김 — todo.json 에 남겨 두고 다음 시작 때 다시 */
+      }
+    }
+    return done.size ? { ...data, items: data.items.filter((i) => !done.has(i.id)) } : data;
   }
 
   dispatch = (action: Action): TodoData => {
