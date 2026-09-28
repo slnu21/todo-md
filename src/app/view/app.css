@@ -1,0 +1,205 @@
+/*
+ * TODO.md 위젯 스타일. 기준은 docs/design/mockup/index.html(목업 5판).
+ * 색은 md-reader 5토큰(--bg --fg --accent --surface --border) + 의미 색 둘(--hl 형광펜, --red 빨간 펜).
+ * 나머지는 전부 color-mix 파생 — 테마를 늘려도 아래는 그대로다.
+ * 시스템 = data-theme 없음(prefers-color-scheme 을 따름). 직접 고르면 <html data-theme="light|dark">.
+ */
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("../assets/fonts/PretendardVariable.woff2") format("woff2-variations");
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #ffffff; --fg: #1a1a1a; --accent: #2563eb; --surface: #f5f5f5; --border: #e2e2e2;
+  --hl: rgba(250, 206, 40, 0.5); --red: #c9372c;
+  --shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 10px 28px rgba(20, 20, 20, 0.16);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1e1e1e; --fg: #e6e6e6; --accent: #60a5fa; --surface: #252526; --border: #333333;
+    --hl: rgba(250, 204, 21, 0.26); --red: #f47067;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1e1e1e; --fg: #e6e6e6; --accent: #60a5fa; --surface: #252526; --border: #333333;
+  --hl: rgba(250, 204, 21, 0.26); --red: #f47067;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+:root {
+  --muted: color-mix(in srgb, var(--fg) 62%, var(--bg));
+  --faint: color-mix(in srgb, var(--fg) 42%, var(--bg));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  --red-soft: color-mix(in srgb, var(--red) 15%, var(--bg));
+  --on-accent: var(--bg);
+  --sans: "Pretendard Variable", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+/* 좁은 위젯이라 스크롤바는 얇게 — WebView2 기본 스크롤바가 목록 폭을 먹는다 */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--fg) 22%, var(--bg)) transparent; }
+@media (prefers-reduced-motion: no-preference) {
+  .detail { animation: slide-in 140ms ease-out; }
+  .pop { animation: fade-in 120ms ease-out; }
+}
+@keyframes slide-in { from { opacity: 0; transform: translateX(12px); } }
+@keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ── widget shell ── */
+.widget { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--bg); border-inline: 1px solid var(--border); overflow: hidden; }
+.w-bar { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 12px; border-bottom: 1px solid var(--border); flex: none; }
+.w-bar .name { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; flex: 1; min-width: 0; }
+.chipbtn { border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-size: 12px; padding: 2px 8px; cursor: pointer; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.chipbtn:hover { color: var(--fg); }
+.chipbtn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.chipbtn svg { width: 14px; height: 14px; }
+.iconbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 3px 6px; border-radius: 4px; }
+.iconbtn:hover { background: var(--surface); color: var(--fg); }
+
+.textbtn { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: inherit; }
+
+/* segmented control */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: none; font-size: 12.5px; padding: 3px 10px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.seg svg { width: 14px; height: 12px; display: block; }
+
+/* settings popover */
+.pop { position: absolute; top: 40px; left: 8px; right: 8px; z-index: 20; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.pop h4 { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.pop .path { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin: 0 0 6px; }
+
+/* banner (파일 오류·경고) */
+.banner { margin: 8px 10px 0; padding: 7px 10px; border-radius: 6px; font-size: 12.5px; line-height: 1.45; background: var(--red-soft); color: var(--red); flex: none; }
+.banner.warn { background: var(--accent-soft); color: var(--accent); }
+
+/* ── calendar ── */
+.cal { padding: 8px 10px 6px; border-bottom: 1px solid var(--border); flex: none; }
+.cal-head { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
+.cal-head .m { font-weight: 700; font-size: 15px; flex: 1; padding-left: 2px; }
+.cal-nav { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 7px; border-radius: 4px; }
+.cal-nav:hover { background: var(--surface); color: var(--fg); }
+.cal .seg button { font-size: 11.5px; padding: 1px 8px; }
+.grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+.dow { font-size: 11px; color: var(--faint); }
+.dow.sun, .day.sun, .day.holiday { color: var(--red); }
+.day { position: relative; border: 0; background: none; font-size: 12.5px; color: var(--fg); height: 29px; cursor: pointer; padding: 0; }
+.day .n { position: relative; z-index: 1; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; }
+.day.other { opacity: 0.35; }
+.day.today .n { background: var(--hl); font-weight: 700; }
+.day.sel .n { box-shadow: inset 0 0 0 2px var(--accent); color: var(--accent); font-weight: 700; }
+.day:hover .n { background: var(--surface); }
+.day.today:hover .n { background: var(--hl); }
+.day .dot { position: absolute; left: 50%; bottom: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--faint); }
+.day .dot.hi { background: var(--accent); }
+.day .dot.late { background: var(--red); }
+
+/* ── quick input ── */
+.quick { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; border-bottom: 1px solid var(--border); background: var(--surface); flex: none; }
+.qrow { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.field { font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; min-width: 0; }
+.field::placeholder { color: var(--faint); }
+.quick .project { width: 100%; }
+.quick .title { flex: 1; }
+.quick .due { flex: none; width: 126px; }
+.quick .owner { flex: 1 1 50px; min-width: 44px; }
+.btn { font-size: 13px; font-weight: 600; border: 0; border-radius: 5px; padding: 5px 12px; cursor: pointer; background: var(--accent); color: var(--on-accent); white-space: nowrap; }
+.btn.ghost { background: var(--bg); color: var(--fg); border: 1px solid var(--border); font-weight: 500; }
+
+/* ── list ── */
+.w-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 18px; }
+.filter { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 0; padding: 4px 9px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; }
+.group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 14px 0 3px; border-bottom: 1.5px solid var(--fg); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+.group-head h3 { margin: 0; font-size: 15px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.gh-actions { display: inline-flex; gap: 8px; align-items: baseline; flex: none; }
+.counts { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.counts .late { color: var(--red); font-weight: 600; }
+.gh-btn { border: 0; background: none; padding: 0; font-size: 11.5px; color: var(--faint); cursor: pointer; opacity: 0; }
+.group-head:hover .gh-btn, .gh-btn:focus-visible { opacity: 1; }
+.gh-btn:hover { color: var(--accent); }
+.confirm { margin: 6px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; }
+.confirm .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.confirm button { border: 1px solid var(--border); background: var(--bg); border-radius: 5px; padding: 2px 9px; font-size: 12px; cursor: pointer; color: var(--fg); }
+.confirm button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+ul.items { list-style: none; margin: 0; padding: 0; }
+li.item { border-bottom: 1px solid var(--border); }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; padding: 7px 0 6px; }
+.status { width: 24px; height: 24px; border: 0; background: none; padding: 1px; cursor: pointer; border-radius: 50%; }
+.status svg { display: block; width: 22px; height: 22px; }
+.body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.title-btn { border: 0; background: none; padding: 2px 0 0; text-align: left; cursor: pointer; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; color: var(--fg); }
+.title-btn:hover .t { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.item.doing .t { background: linear-gradient(transparent 50%, var(--hl) 50%, var(--hl) 94%, transparent 94%); -webkit-box-decoration-break: clone; box-decoration-break: clone; font-weight: 600; }
+.item.done .t { color: var(--faint); text-decoration: line-through; }
+.item.low .t { color: var(--muted); }
+.lastmemo { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lastmemo time { color: var(--faint); margin-right: 5px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.due-late { color: var(--red); font-weight: 600; }
+.due-today { font-weight: 600; color: var(--fg); background: var(--hl); padding: 0 4px; border-radius: 2px; }
+.who { color: var(--accent); overflow-wrap: anywhere; }
+.imp { border: 0; background: none; padding: 1px; cursor: pointer; display: inline-flex; border-radius: 3px; }
+.imp svg { width: 14px; height: 12px; display: block; }
+.subtoggle { border: 0; background: none; padding: 0; cursor: pointer; color: var(--muted); font-size: 12px; }
+.subtoggle:hover { color: var(--accent); }
+.subs-box { padding: 2px 0 8px 32px; display: flex; flex-direction: column; }
+.sub { display: flex; align-items: center; gap: 7px; font-size: 13px; padding: 1px 0; }
+.sub input { width: 15px; height: 15px; accent-color: var(--fg); margin: 0; flex: none; }
+.sub span { overflow-wrap: anywhere; min-width: 0; }
+.sub.done span { color: var(--faint); text-decoration: line-through; }
+.line-in { font-size: 13px; color: var(--fg); background: transparent; border: 0; border-bottom: 1px dashed var(--border); padding: 5px 2px; width: 100%; }
+.line-in::placeholder { color: var(--faint); }
+.done-toggle { margin-top: 6px; font-size: 12px; }
+.empty { color: var(--faint); font-size: 13px; padding: 20px 4px; text-align: center; }
+.archive-box { margin-top: 18px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
+.archive-box ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.archive-box li { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.archive-box li > span { min-width: 0; overflow-wrap: anywhere; }
+.archive-box small { color: var(--faint); margin-left: 6px; }
+
+/* ── detail (M1: 위젯 안 패널. M3 에서 별도 창) ── */
+.detail { position: absolute; inset: 41px 0 0 0; z-index: 10; display: flex; flex-direction: column; background: var(--bg); border-top: 1px solid var(--border); }
+.pp-head { display: flex; align-items: flex-start; gap: 8px; padding: 12px 10px 8px 14px; border-bottom: 1px solid var(--border); }
+.pp-head > div { flex: 1; min-width: 0; }
+.pp-head .proj { font-size: 12px; color: var(--muted); }
+.pp-title { width: 100%; font-weight: 700; font-size: 16.5px; line-height: 1.4; border: 0; background: none; color: var(--fg); padding: 0; resize: none; overflow: hidden; display: block; }
+.pp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 14px; }
+.props { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 7px 10px; align-items: center; font-size: 12.5px; }
+.props > span:nth-child(odd) { color: var(--muted); }
+.props .field { font-size: 12.5px; padding: 3px 7px; width: 100%; }
+.props .seg { justify-self: start; }
+.pp-sec h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); display: flex; justify-content: space-between; }
+.pp-sec .sub { justify-content: space-between; }
+.pp-sec .sub label { display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer; }
+.x { border: 0; background: none; color: var(--faint); cursor: pointer; opacity: 0; font-size: 14px; line-height: 1; padding: 1px 3px; flex: none; }
+.sub:hover .x, .m:hover .x, .x:focus-visible { opacity: 1; }
+.log { list-style: none; margin: 0; padding: 0; }
+.log .day-h { font-size: 12px; font-weight: 600; color: var(--fg); padding: 8px 0 2px; border-bottom: 1px solid var(--border); }
+.log li.m { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.5; }
+.log li.m span { overflow-wrap: anywhere; }
+.log time { color: var(--faint); font-size: 12px; padding-top: 1px; }
+.log-empty { font-size: 12.5px; color: var(--faint); padding: 4px 0; margin: 0; }
+.memo-in { margin-top: 6px; width: 100%; }
+.pp-foot { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--faint); flex: none; }
+.danger { border: 0; background: none; color: var(--red); cursor: pointer; font-size: 12px; padding: 0; }
+
+@media (hover: none) { .gh-btn, .x { opacity: 1; } }

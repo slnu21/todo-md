@@ -18,8 +18,9 @@ export default defineConfig({
   projects: [
     {
       name: "browser",
-      testMatch: /browser\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"], baseURL: BASE_URL, viewport: { width: 360, height: 900 } },
+      testMatch: /(browser|screens)\.spec\.ts/,
+      // 로캘 고정: "시스템 언어" 가 한국어로 잡히게(기본 en-US 면 UI 가 영어로 뜬다 — 그 자체가 정상 동작).
+      use: { ...devices["Desktop Chrome"], baseURL: BASE_URL, viewport: { width: 360, height: 900 }, locale: "ko-KR" },
     },
   ],
   webServer: {
