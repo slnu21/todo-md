@@ -7,6 +7,8 @@ export type ThemePref = "system" | "light" | "dark";
 export type LangPref = "system" | "ko" | "en";
 export type DockMode = "dock" | "float";
 export type DockEdge = "left" | "right";
+/** 위젯 × 를 눌렀을 때. "ask" = 처음 한 번 묻고 고른 값으로 바꾼다(설정에서 되돌릴 수 있다). */
+export type CloseAction = "ask" | "hide" | "quit";
 
 export interface Settings {
   theme: ThemePref;
@@ -20,13 +22,14 @@ export interface Settings {
   };
   /** 입력줄의 마지막 프로젝트(Enter 뒤에도 유지 — 다음 실행에도). */
   lastProjectId: string;
+  closeAction: CloseAction;
 }
 
 export const WIDTH_MIN = 300;
 export const WIDTH_MAX = 440;
 
 export function defaultSettings(): Settings {
-  return { theme: "system", lang: "system", dock: { mode: "dock", edge: "right", monitor: "", width: 360 }, lastProjectId: "" };
+  return { theme: "system", lang: "system", dock: { mode: "dock", edge: "right", monitor: "", width: 360 }, lastProjectId: "", closeAction: "ask" };
 }
 
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
@@ -55,6 +58,7 @@ export function parseSettings(text: string | null): Settings {
       width: Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, width)),
     },
     lastProjectId: typeof raw.lastProjectId === "string" ? raw.lastProjectId : "",
+    closeAction: pick(raw.closeAction, ["ask", "hide", "quit"], d.closeAction),
   };
 }
 

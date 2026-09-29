@@ -1,9 +1,9 @@
 /**
- * 설정 팝오버 — 위치(모니터 그림에서 가장자리 누르기) · 방식(도킹/떠 있기) · 폭 · 테마 · 언어 · 자동 실행 · 데이터 폴더 · 종료.
+ * 설정 팝오버 — 위치(모니터 그림에서 가장자리 누르기) · 방식(도킹/떠 있기) · 폭 · 테마 · 언어 · 자동 실행 · × 버튼 · 데이터 폴더 · 종료.
  * 모니터 그림은 Windows 디스플레이 설정처럼 **실제 배치 비율**로 그린다.
  */
 import { useEffect, useState } from "react";
-import type { LangPref, Settings, ThemePref } from "../core/settings";
+import type { CloseAction, LangPref, Settings, ThemePref } from "../core/settings";
 import { WIDTH_MAX, WIDTH_MIN } from "../core/settings";
 import { io, type MonitorInfo } from "../io/io";
 import { Seg, useT } from "./ui";
@@ -121,6 +121,17 @@ export function SettingsPanel({
           />
           {t("set.autostart")}
         </label>
+      )}
+      {desktop && (
+        <div>
+          <h4>{t("set.close")}</h4>
+          <Seg<CloseAction>
+            label={t("set.close")}
+            items={[{ v: "ask", label: t("closeOpt.ask") }, { v: "hide", label: t("close.hide") }, { v: "quit", label: t("close.quit") }]}
+            value={settings.closeAction}
+            onPick={(v) => onChange((s) => ({ ...s, closeAction: v }))}
+          />
+        </div>
       )}
       <div>
         <h4>{t("set.data")}</h4>

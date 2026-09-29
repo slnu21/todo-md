@@ -7,7 +7,7 @@ import type { Action } from "../core/actions";
 import type { PlainDate } from "../core/date";
 import { INBOX_ID, type TodoData } from "../core/model";
 import { activeProjects } from "../core/select";
-import type { Settings } from "../core/settings";
+import type { CloseAction, Settings } from "../core/settings";
 import { defaultReport } from "../core/report";
 import { io } from "../io/io";
 import type { AppState } from "./store";
@@ -41,6 +41,7 @@ export function Widget({
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [closeAsk, setCloseAsk] = useState(false);
 
   const openItem = openId ? data.items.find((i) => i.id === openId) ?? null : null;
   useEffect(() => { if (openId && !openItem) setOpenId(null); }, [openId, openItem]);
@@ -48,12 +49,27 @@ export function Widget({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (reportOpen) setReportOpen(false);
+      else if (closeAsk) setCloseAsk(false);
       else if (settingsOpen) setSettingsOpen(false);
       else if (openId) setOpenId(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [settingsOpen, openId, reportOpen]);
+  }, [settingsOpen, openId, reportOpen, closeAsk]);
+
+  // × = 설정대로 숨기기(트레이)·종료. "ask" 면 처음 한 번 묻고, 고른 값을 기억한다(설정에서 바꿈).
+  const runClose = (a: Exclude<CloseAction, "ask">) => (a === "hide" ? void io.hideWidget() : onQuit());
+  const onCloseClick = () => {
+    if (settings.closeAction !== "ask") return runClose(settings.closeAction);
+    setSettingsOpen(false);
+    setCloseAsk((v) => !v);
+  };
+  const chooseClose = (a: Exclude<CloseAction, "ask">) => {
+    setCloseAsk(false);
+    updateSettings((s) => ({ ...s, closeAction: a })); // 종료여도 onQuit 이 저장을 비우고(flush) 끝낸다
+    runClose(a);
+  };
+  const closeLabel = settings.closeAction === "hide" ? t("bar.hide") : settings.closeAction === "quit" ? t("set.quit") : t("bar.close");
 
   const projects = activeProjects(data);
   const projectName = (id: string) => (id === INBOX_ID ? t("inbox.name") : data.projects.find((p) => p.id === id)?.name ?? "");
@@ -74,16 +90,45 @@ export function Widget({
           className="chipbtn"
           aria-expanded={settingsOpen}
           aria-controls="settings-pop"
-          onClick={() => setSettingsOpen((v) => !v)}
+          onClick={() => { setCloseAsk(false); setSettingsOpen((v) => !v); }}
         >
           <GearIcon />
           {t("bar.settings")}
         </button>
-        {/* × = 트레이로 숨기기(종료는 트레이 메뉴·설정). 브라우저에는 트레이가 없어 두지 않는다. */}
+        {/* × = 숨기기(트레이) 또는 종료 — settings.closeAction. 브라우저에는 트레이·종료가 없어 두지 않는다. */}
         {io.kind === "tauri" && (
-          <button type="button" className="iconbtn" aria-label={t("bar.hide")} title={t("bar.hide")} onClick={() => void io.hideWidget()}>×</button>
+          <button
+            type="button"
+            className="iconbtn"
+            aria-label={closeLabel}
+            title={closeLabel}
+            aria-expanded={settings.closeAction === "ask" ? closeAsk : undefined}
+            aria-controls={settings.closeAction === "ask" ? "close-pop" : undefined}
+            onClick={onCloseClick}
+          >
+            ×
+          </button>
         )}
       </div>
+
+      {closeAsk && (
+        <div className="pop" id="close-pop" role="dialog" aria-label={t("close.title")}>
+          <div>
+            <h4>{t("close.title")}</h4>
+            <div className="close-choices">
+              <button type="button" className="choice" autoFocus onClick={() => chooseClose("hide")}>
+                <b>{t("close.hide")}</b>
+                <small>{t("close.hideSub")}</small>
+              </button>
+              <button type="button" className="choice" onClick={() => chooseClose("quit")}>
+                <b>{t("close.quit")}</b>
+                <small>{t("close.quitSub")}</small>
+              </button>
+            </div>
+          </div>
+          <p className="note">{t("close.note")}</p>
+        </div>
+      )}
 
       {settingsOpen && (
         <SettingsPanel

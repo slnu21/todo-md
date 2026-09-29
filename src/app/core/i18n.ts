@@ -192,6 +192,14 @@ const ko = {
   "mon.right": "{m} 오른쪽",
   "tray.toggle": "보이기 / 숨기기",
   "tray.quit": "종료",
+  "close.title": "× 를 누르면",
+  "close.hide": "숨기기",
+  "close.hideSub": "트레이에 남아 계속 실행 — 트레이 아이콘으로 다시 열기",
+  "close.quit": "종료",
+  "close.quitSub": "앱을 완전히 끝내기",
+  "close.note": "고른 것을 기억합니다. 설정에서 바꿀 수 있어요.",
+  "set.close": "× 버튼",
+  "closeOpt.ask": "매번 묻기",
 } as const;
 
 export type Key = keyof typeof ko;
@@ -380,6 +388,14 @@ const en: Record<Key, string> = {
   "mon.right": "{m}, right edge",
   "tray.toggle": "Show / hide",
   "tray.quit": "Quit",
+  "close.title": "When you click ×",
+  "close.hide": "Hide",
+  "close.hideSub": "Keeps running in the tray — reopen from the tray icon",
+  "close.quit": "Quit",
+  "close.quitSub": "Exit the app completely",
+  "close.note": "Your choice is remembered. You can change it in Settings.",
+  "set.close": "× button",
+  "closeOpt.ask": "Always ask",
 };
 
 export const DICT: Record<Lang, Record<Key, string>> = { ko, en };
