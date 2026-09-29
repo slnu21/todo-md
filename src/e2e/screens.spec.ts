@@ -65,6 +65,15 @@ test.describe("screens", () => {
     await shot(page, "07-archive-list");
   });
 
+  test("프로젝트 이름 바꾸기 — 머리줄 버튼 + 입력칸", async ({ page }) => {
+    await fresh(page);
+    const g = page.locator('section[data-project="p2"]');
+    await g.locator(".group-head").hover();
+    await shot(page, "06b-rename-hover");
+    await g.getByRole("button", { name: /이름 바꾸기/ }).click();
+    await shot(page, "06c-rename-input");
+  });
+
   test("달력 날짜 필터 + 주 보기", async ({ page }) => {
     await fresh(page);
     await page.locator(".day.today").click();

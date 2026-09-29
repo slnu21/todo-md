@@ -121,6 +121,14 @@ describe("프로젝트", () => {
     expect(run(d0, { type: "archiveProject", id: INBOX_ID, doneAll: false })).toBe(d0);
     expect(run(d0, { type: "renameProject", id: INBOX_ID, name: "기타" })).toBe(d0);
   });
+  it("이름 바꾸기 — 공백을 정리하고, 빈 이름·같은 이름·없는 프로젝트는 그대로", () => {
+    const d0 = seeded();
+    const d = run(d0, { type: "renameProject", id: "p1", name: "  새   이름 " });
+    expect(d.projects.find((p) => p.id === "p1")?.name).toBe("새 이름");
+    expect(run(d0, { type: "renameProject", id: "p1", name: "   " })).toBe(d0);
+    expect(run(d0, { type: "renameProject", id: "p1", name: d0.projects[0].name })).toBe(d0);
+    expect(run(d0, { type: "renameProject", id: "nope", name: "x" })).toBe(d0);
+  });
   it("그대로 보관 — 할 일은 손대지 않는다", () => {
     const d = run(seeded(), { type: "archiveProject", id: "p1", doneAll: false });
     expect(d.projects[0]).toMatchObject({ archived: true, archivedAt: "2026-09-28T09:00" });

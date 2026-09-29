@@ -29,6 +29,7 @@ export function ItemList({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const groups = listGroups(data, today, selDate || undefined);
   const archived = archivedRows(data);
@@ -56,12 +57,28 @@ export function ItemList({
       {groups.map((g) => (
         <section key={g.project.id} className="group" data-project={g.project.id} aria-label={name(g.project)}>
           <div className="group-head">
-            <h3>{name(g.project)}</h3>
+            {renaming === g.project.id ? (
+              <RenameInput
+                initial={g.project.name}
+                onDone={(v) => {
+                  if (v !== null) dispatch({ type: "renameProject", id: g.project.id, name: v });
+                  setRenaming(null);
+                }}
+              />
+            ) : (
+              // 두 번 눌러도 이름 바꾸기(버튼은 마우스를 올려야 보여서 — 미분류는 제외).
+              <h3 onDoubleClick={g.project.id !== INBOX_ID ? () => setRenaming(g.project.id) : undefined}>{name(g.project)}</h3>
+            )}
             <span className="gh-actions">
-              {g.project.id !== INBOX_ID && (
-                <button type="button" className="gh-btn" aria-label={t("arc.aria", { p: name(g.project) })} onClick={() => archive(g.project)}>
-                  {t("gh.archive")}
-                </button>
+              {g.project.id !== INBOX_ID && renaming !== g.project.id && (
+                <>
+                  <button type="button" className="gh-btn" aria-label={t("ren.aria", { p: name(g.project) })} onClick={() => setRenaming(g.project.id)}>
+                    {t("gh.rename")}
+                  </button>
+                  <button type="button" className="gh-btn" aria-label={t("arc.aria", { p: name(g.project) })} onClick={() => archive(g.project)}>
+                    {t("gh.archive")}
+                  </button>
+                </>
               )}
               <span className="counts">
                 {t("list.left", { n: g.open.length })}
@@ -218,6 +235,35 @@ function Row({
         </div>
       )}
     </li>
+  );
+}
+
+/** 프로젝트 이름 고치기: 전체 선택된 채 열린다. Enter·포커스 잃음 = 저장, Esc = 취소(`null`). 한글 조합 중 Enter 는 무시. */
+function RenameInput({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
+  const { t } = useT();
+  const [v, setV] = useState(initial);
+  const done = useRef(false);
+  const finish = (r: string | null) => {
+    if (done.current) return; // Enter 뒤 사라지며 오는 blur 로 두 번 부르지 않게
+    done.current = true;
+    onDone(r);
+  };
+  return (
+    <input
+      className="rename-in"
+      aria-label={t("ren.input")}
+      title={t("ren.input")}
+      value={v}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => finish(v)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
+        if (e.key === "Enter") { e.preventDefault(); finish(v); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(null); }
+      }}
+    />
   );
 }
 

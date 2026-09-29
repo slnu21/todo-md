@@ -76,6 +76,9 @@ const ko = {
   "list.emptyAll": "아직 할 일이 없습니다. 위 입력줄에 적고 Enter를 누르세요.",
 
   "gh.archive": "보관",
+  "gh.rename": "이름",
+  "ren.aria": "{p} 이름 바꾸기",
+  "ren.input": "프로젝트 이름 — Enter 저장, Esc 취소",
   "arc.aria": "{p} 보관",
   "arc.confirm": "남은 할 일이 {n}건 있습니다. 어떻게 할까요?",
   "arc.doneAll": "모두 완료하고 보관",
@@ -264,6 +267,9 @@ const en: Record<Key, string> = {
   "list.emptyAll": "No to-dos yet. Type one above and press Enter.",
 
   "gh.archive": "Archive",
+  "gh.rename": "Rename",
+  "ren.aria": "Rename {p}",
+  "ren.input": "Project name — Enter to save, Esc to cancel",
   "arc.aria": "Archive {p}",
   "arc.confirm": "{n} to-dos are still open. What should happen to them?",
   "arc.doneAll": "Mark all done, archive",
