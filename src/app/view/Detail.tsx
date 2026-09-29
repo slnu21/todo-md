@@ -27,11 +27,12 @@ export function Detail({
   const [title, setTitle] = useState(item.title);
   const [owner, setOwner] = useState(item.assignee);
   const [armDelete, setArmDelete] = useState(false);
+  const [editingMemo, setEditingMemo] = useState<string | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // 다른 할 일로 바뀌면 편집 중 값을 새로 받는다.
-  useEffect(() => { setTitle(item.title); setOwner(item.assignee); setArmDelete(false); }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setTitle(item.title); setOwner(item.assignee); setArmDelete(false); setEditingMemo(null); }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const el = titleRef.current;
     if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
@@ -140,8 +141,23 @@ export function Detail({
                 ...d.memos.map((m) => (
                   <li key={m.id} className="m">
                     <time dateTime={m.at}>{timeOfStamp(m.at)}</time>
-                    <span>{m.text}</span>
-                    <button type="button" className="x" aria-label={t("memo.delAria")} onClick={() => dispatch({ type: "deleteMemo", itemId: item.id, memoId: m.id })}>×</button>
+                    {editingMemo === m.id ? (
+                      <MemoEdit
+                        initial={m.text}
+                        onDone={(text) => {
+                          if (text !== null) dispatch({ type: "editMemo", itemId: item.id, memoId: m.id, text });
+                          setEditingMemo(null);
+                        }}
+                      />
+                    ) : (
+                      <span onDoubleClick={() => setEditingMemo(m.id)}>{m.text}</span>
+                    )}
+                    <span className="m-acts">
+                      {editingMemo !== m.id && (
+                        <button type="button" className="x" aria-label={t("memo.editAria")} title={t("memo.editAria")} onClick={() => setEditingMemo(m.id)}>✎</button>
+                      )}
+                      <button type="button" className="x" aria-label={t("memo.delAria")} onClick={() => dispatch({ type: "deleteMemo", itemId: item.id, memoId: m.id })}>×</button>
+                    </span>
                   </li>
                 )),
               ])}
@@ -172,5 +188,43 @@ export function Detail({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * 메모 한 줄 고치기 — 줄바꿈되는 입력칸(메모는 길 수 있다). Enter·바깥 클릭 = 저장, Esc = 취소(`null`).
+ * 한글 조합 중 Enter 는 무시. 적은 시각은 그대로(기록이라서 — reduce `editMemo`).
+ */
+function MemoEdit({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
+  const { t } = useT();
+  const [v, setV] = useState(initial);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const done = useRef(false);
+  const finish = (r: string | null) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(r);
+  };
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+  }, [v]);
+  return (
+    <textarea
+      ref={ref}
+      className="memo-edit"
+      rows={1}
+      aria-label={t("memo.editInput")}
+      value={v}
+      autoFocus
+      onFocus={(e) => { const n = e.currentTarget.value.length; e.currentTarget.setSelectionRange(n, n); }}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => finish(v)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
+        if (e.key === "Enter") { e.preventDefault(); finish(v); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(null); }
+      }}
+    />
   );
 }

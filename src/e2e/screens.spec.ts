@@ -53,6 +53,15 @@ test.describe("screens", () => {
     await shot(page, "05-detail");
   });
 
+  test("메모 고치기", async ({ page }) => {
+    await fresh(page);
+    await page.getByRole("button", { name: /Store 재제출/ }).click();
+    const memo = page.getByTestId("detail").locator("li.m", { hasText: "서명 경고" });
+    await memo.hover();
+    await memo.getByRole("button", { name: "이 메모 고치기" }).click();
+    await shot(page, "05b-memo-edit");
+  });
+
   test("보관 확인 + 보관 목록 + 하위 펼침", async ({ page }) => {
     await fresh(page);
     const g = page.locator('section[data-project="p3"]');

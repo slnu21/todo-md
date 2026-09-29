@@ -105,6 +105,24 @@ describe("하위 항목과 메모", () => {
       ["2026-09-27T16:40", "서명 경고"],
     ]);
   });
+  it("메모 고치기 — 글만 바뀌고 적은 시각·순서는 그대로", () => {
+    const d0 = seeded();
+    const memos = [{ id: "m1", at: "2026-09-26T10:05", text: "첫 줄" }, { id: "m2", at: "2026-09-27T16:40", text: "둘째 줄" }];
+    const d = { ...d0, items: d0.items.map((i) => (i.id === "a" ? { ...i, memos } : i)) };
+    const e = run(d, { type: "editMemo", itemId: "a", memoId: "m1", text: "  고친\n 첫 줄 " }, "2026-09-29T09:00");
+    expect(item(e, "a").memos.map((m) => [m.at, m.text])).toEqual([
+      ["2026-09-26T10:05", "고친 첫 줄"],
+      ["2026-09-27T16:40", "둘째 줄"],
+    ]);
+  });
+  it("메모 고치기 — 빈 글·같은 글·없는 메모는 그대로(같은 객체)", () => {
+    const d = run(seeded(), { type: "addMemo", itemId: "a", text: "기록" });
+    const id = item(d, "a").memos[0].id;
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: id, text: "   " })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: id, text: " 기록 " })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: "nope", text: "x" })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "nope", memoId: id, text: "x" })).toBe(d);
+  });
   it("빈 메모는 남기지 않는다", () => {
     const d0 = seeded();
     expect(run(d0, { type: "addMemo", itemId: "a", text: "  " })).toBe(d0);
