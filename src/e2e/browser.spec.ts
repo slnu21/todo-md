@@ -164,6 +164,8 @@ test("프로젝트 이름 바꾸기 — 버튼·두 번 누르기, Enter/바깥 
   await expect(inbox.getByRole("button", { name: /이름 바꾸기/ })).toHaveCount(0);
   await inbox.getByRole("heading").dblclick();
   await expect(inbox.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소")).toHaveCount(0);
+});
+
 test("메모 고치기 — ✎·두 번 누르기, Enter/바깥 = 저장, Esc = 취소(상세는 안 닫힘), 시각은 그대로", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   await page.getByRole("button", { name: /Store 재제출/ }).click();
