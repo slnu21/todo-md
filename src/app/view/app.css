@@ -255,6 +255,11 @@ li.item { border-bottom: 1px solid var(--border); }
 .pop .note { font-size: 11.5px; color: var(--faint); margin: 0; line-height: 1.45; }
 .pop .check { display: flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
 .pop .check input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.close-choices { display: flex; flex-direction: column; gap: 6px; }
+.choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; font: inherit; }
+.choice:hover, .choice:focus-visible { border-color: var(--accent); background: var(--surface); }
+.choice b { font-size: 13px; font-weight: 600; }
+.choice small { font-size: 11.5px; color: var(--muted); }
 .danger-btn { color: var(--red); }
 .pop { max-height: calc(100% - 48px); overflow-y: auto; }
 
