@@ -135,6 +135,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .gh-btn { border: 0; background: none; padding: 0; font-size: 11.5px; color: var(--faint); cursor: pointer; opacity: 0; }
 .group-head:hover .gh-btn, .gh-btn:focus-visible { opacity: 1; }
 .gh-btn:hover { color: var(--accent); }
+.rename-in { flex: 1; min-width: 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--fg); background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px; margin: -2px 0; }
 .confirm { margin: 6px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; }
 .confirm .acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .confirm button { border: 1px solid var(--border); background: var(--bg); border-radius: 5px; padding: 2px 9px; font-size: 12px; cursor: pointer; color: var(--fg); }

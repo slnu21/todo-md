@@ -78,7 +78,9 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
     }
     case "renameProject": {
       const name = clean(action.name);
-      if (!name || action.id === INBOX_ID) return data;
+      const cur = data.projects.find((p) => p.id === action.id);
+      // 빈 이름·미분류·없는 프로젝트·같은 이름이면 그대로(같은 객체 — 저장이 일어나지 않는다).
+      if (!name || !cur || action.id === INBOX_ID || cur.name === name) return data;
       return { ...data, projects: data.projects.map((p) => (p.id === action.id ? { ...p, name } : p)) };
     }
     case "archiveProject": {

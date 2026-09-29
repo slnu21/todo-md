@@ -124,6 +124,48 @@ test("하위 입력칸 닫기 — 비운 채 바깥 클릭·Esc·버튼 다시 �
   await expect(r.getByLabel("오전 10시")).toHaveCount(0);
 });
 
+test("프로젝트 이름 바꾸기 — 버튼·두 번 누르기, Enter/바깥 = 저장, Esc = 취소, 미분류는 안 됨", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const g = page.locator('section[data-project="p3"]');
+  const input = g.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소");
+
+  await g.getByRole("button", { name: "사내 교육 준비 이름 바꾸기" }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("사내 교육 준비");
+  await page.keyboard.type("신입 교육"); // 전체 선택된 채 열려 통째로 바뀐다
+  await page.keyboard.press("Enter");
+  await expect(g.getByRole("heading", { name: "신입 교육" })).toBeVisible();
+  // 입력줄 프로젝트 목록도 따라 바뀐다.
+  await expect(page.getByLabel("프로젝트").locator("option", { hasText: "신입 교육" })).toHaveCount(1);
+
+  // Esc = 취소.
+  await g.getByRole("heading", { name: "신입 교육" }).dblclick();
+  await input.fill("버릴 이름");
+  await input.press("Escape");
+  await expect(g.getByRole("heading", { name: "신입 교육" })).toBeVisible();
+
+  // 바깥을 누르면 저장, 빈 이름이면 원래대로.
+  await g.getByRole("heading", { name: "신입 교육" }).dblclick();
+  await input.fill("교육 2026");
+  await titleInput(page).click();
+  await expect(g.getByRole("heading", { name: "교육 2026" })).toBeVisible();
+  await g.getByRole("heading", { name: "교육 2026" }).dblclick();
+  await input.fill("   ");
+  await input.press("Enter");
+  await expect(g.getByRole("heading", { name: "교육 2026" })).toBeVisible();
+
+  // 새로 읽어도 남아 있다(저장됨).
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(page.locator('section[data-project="p3"]').getByRole("heading", { name: "교육 2026" })).toBeVisible();
+
+  // 미분류: 버튼 없음, 두 번 눌러도 입력칸이 안 열린다.
+  const inbox = page.locator('section[data-project="inbox"]');
+  await expect(inbox.getByRole("button", { name: /이름 바꾸기/ })).toHaveCount(0);
+  await inbox.getByRole("heading").dblclick();
+  await expect(inbox.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소")).toHaveCount(0);
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');
