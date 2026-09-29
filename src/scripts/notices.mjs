@@ -70,7 +70,8 @@ if (bad.length) {
   process.exit(2);
 }
 
-const ofl = readFileSync(join(SRC, "app", "assets", "fonts", "OFL.txt"), "utf8");
+// 체크아웃 줄끝(autocrlf)에 따라 출력이 달라지지 않게 입력도 LF 로.
+const ofl = readFileSync(join(SRC, "app", "assets", "fonts", "OFL.txt"), "utf8").replace(/\r\n/g, "\n");
 const md = renderNotices({
   product: "TODO.md",
   npm,
