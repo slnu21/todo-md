@@ -21,6 +21,8 @@ export type ItemPatch = Partial<Pick<Item, "title" | "importance" | "due" | "ass
 export type Action =
   | { type: "addProject"; name: string }
   | { type: "renameProject"; id: string; name: string }
+  /** 순서 바꾸기: `id` 를 `before` 바로 앞으로. `before` = null 이거나 미분류면 활성 목록의 끝(미분류 바로 앞). */
+  | { type: "moveProject"; id: string; before: string | null }
   | { type: "archiveProject"; id: string; doneAll: boolean }
   | { type: "restoreProject"; id: string }
   | { type: "addItem"; projectId: string; title: string; importance?: Importance; due?: PlainDate | ""; assignee?: string }
@@ -33,6 +35,8 @@ export type Action =
   | { type: "toggleSub"; itemId: string; subId: string; done: boolean }
   | { type: "deleteSub"; itemId: string; subId: string }
   | { type: "addMemo"; itemId: string; text: string }
+  /** 글만 고친다 — 적은 시각(`at`)은 기록이라 그대로. */
+  | { type: "editMemo"; itemId: string; memoId: string; text: string }
   | { type: "deleteMemo"; itemId: string; memoId: string }
   | { type: "setReport"; rules: ReportRules | null };
 
@@ -78,8 +82,24 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
     }
     case "renameProject": {
       const name = clean(action.name);
-      if (!name || action.id === INBOX_ID) return data;
+      const cur = data.projects.find((p) => p.id === action.id);
+      // 빈 이름·미분류·없는 프로젝트·같은 이름이면 그대로(같은 객체 — 저장이 일어나지 않는다).
+      if (!name || !cur || action.id === INBOX_ID || cur.name === name) return data;
       return { ...data, projects: data.projects.map((p) => (p.id === action.id ? { ...p, name } : p)) };
+    }
+    case "moveProject": {
+      // 미분류는 움직이지 않는다(늘 활성 목록 맨 끝). 보관한 프로젝트는 배열에 남은 자리 그대로 — 보이는 순서만 바뀐다.
+      const from = data.projects.findIndex((p) => p.id === action.id);
+      if (from < 0 || action.id === INBOX_ID || action.before === action.id) return data;
+      const rest = data.projects.filter((p) => p.id !== action.id);
+      const target = action.before && action.before !== INBOX_ID ? action.before : INBOX_ID;
+      let at = rest.findIndex((p) => p.id === target);
+      if (at < 0) {
+        if (action.before && action.before !== INBOX_ID) return data; // 없는 프로젝트 앞으로는 못 간다
+        at = rest.length;
+      }
+      const projects = [...rest.slice(0, at), data.projects[from], ...rest.slice(at)];
+      return projects.every((p, i) => p === data.projects[i]) ? data : { ...data, projects };
     }
     case "archiveProject": {
       if (action.id === INBOX_ID || !data.projects.some((p) => p.id === action.id && !p.archived)) return data;
@@ -153,6 +173,13 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
       const text = clean(action.text);
       if (!text) return data;
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: [...it.memos, { id: ctx.newId(), at: ctx.now, text }] }));
+    }
+    case "editMemo": {
+      const text = clean(action.text);
+      const memo = data.items.find((i) => i.id === action.itemId)?.memos.find((m) => m.id === action.memoId);
+      // 빈 글로 고치기 = 지우기가 아니다(지우기는 × — 실수로 기록을 잃지 않게). 같은 글·없는 메모도 그대로.
+      if (!text || !memo || memo.text === text) return data;
+      return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.map((m) => (m.id === action.memoId ? { ...m, text } : m)) }));
     }
     case "deleteMemo":
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.filter((m) => m.id !== action.memoId) }));

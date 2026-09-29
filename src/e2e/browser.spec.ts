@@ -124,6 +124,191 @@ test("하위 입력칸 닫기 — 비운 채 바깥 클릭·Esc·버튼 다시 �
   await expect(r.getByLabel("오전 10시")).toHaveCount(0);
 });
 
+test("프로젝트 이름 바꾸기 — 버튼·두 번 누르기, Enter/바깥 = 저장, Esc = 취소, 미분류는 안 됨", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const g = page.locator('section[data-project="p3"]');
+  const input = g.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소");
+
+  await g.getByRole("button", { name: "사내 교육 준비 이름 바꾸기" }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("사내 교육 준비");
+  await page.keyboard.type("신입 교육"); // 전체 선택된 채 열려 통째로 바뀐다
+  await page.keyboard.press("Enter");
+  await expect(g.getByRole("heading", { name: "신입 교육" })).toBeVisible();
+  // 입력줄 프로젝트 목록도 따라 바뀐다.
+  await expect(page.getByLabel("프로젝트").locator("option", { hasText: "신입 교육" })).toHaveCount(1);
+
+  // Esc = 취소.
+  await g.getByRole("heading", { name: "신입 교육" }).dblclick();
+  await input.fill("버릴 이름");
+  await input.press("Escape");
+  await expect(g.getByRole("heading", { name: "신입 교육" })).toBeVisible();
+
+  // 바깥을 누르면 저장, 빈 이름이면 원래대로.
+  await g.getByRole("heading", { name: "신입 교육" }).dblclick();
+  await input.fill("교육 2026");
+  await titleInput(page).click();
+  await expect(g.getByRole("heading", { name: "교육 2026" })).toBeVisible();
+  await g.getByRole("heading", { name: "교육 2026" }).dblclick();
+  await input.fill("   ");
+  await input.press("Enter");
+  await expect(g.getByRole("heading", { name: "교육 2026" })).toBeVisible();
+
+  // 새로 읽어도 남아 있다(저장됨).
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(page.locator('section[data-project="p3"]').getByRole("heading", { name: "교육 2026" })).toBeVisible();
+
+  // 미분류: 버튼 없음, 두 번 눌러도 입력칸이 안 열린다.
+  const inbox = page.locator('section[data-project="inbox"]');
+  await expect(inbox.getByRole("button", { name: /이름 바꾸기/ })).toHaveCount(0);
+  await inbox.getByRole("heading").dblclick();
+  await expect(inbox.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소")).toHaveCount(0);
+});
+
+test("메모 고치기 — ✎·두 번 누르기, Enter/바깥 = 저장, Esc = 취소(상세는 안 닫힘), 시각은 그대로", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  await page.getByRole("button", { name: /Store 재제출/ }).click();
+  const detail = page.getByTestId("detail");
+  const memo = detail.locator("li.m", { hasText: "매니페스트 머지" });
+  const time = await memo.locator("time").textContent();
+  const input = detail.getByLabel("메모 고치기 — Enter 저장, Esc 취소");
+
+  await memo.hover();
+  await memo.getByRole("button", { name: "이 메모 고치기" }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("시작 메뉴 항목 3개를 1개로 줄인 매니페스트 머지");
+  await input.fill("시작 메뉴 항목 3개 → 1개 매니페스트 머지");
+  await input.press("Enter");
+  const edited = detail.locator("li.m", { hasText: "3개 → 1개" });
+  await expect(edited).toBeVisible();
+  await expect(edited.locator("time")).toHaveText(time!); // 적은 시각은 기록이라 그대로
+
+  // Esc = 취소, 상세 창은 그대로.
+  await edited.locator("span").first().dblclick();
+  await input.fill("버릴 글");
+  await input.press("Escape");
+  await expect(detail).toBeVisible();
+  await expect(detail.locator("li.m", { hasText: "3개 → 1개" })).toBeVisible();
+
+  // 빈 글로 저장하면 원래대로(지우기는 × 로만).
+  await edited.locator("span").first().dblclick();
+  await input.fill("  ");
+  await input.press("Enter");
+  await expect(detail.locator("li.m", { hasText: "3개 → 1개" })).toBeVisible();
+
+  // 바깥 클릭 = 저장. 마지막 메모면 목록의 '마지막 메모' 줄도 바뀐다.
+  const last = detail.locator("li.m", { hasText: "2단계 인증" });
+  await last.locator("span").first().dblclick();
+  await input.fill("2단계 인증 기기 교체 완료");
+  await detail.locator(".pp-foot").click();
+  await expect(detail.locator("li.m", { hasText: "기기 교체 완료" })).toBeVisible();
+  await expect(row(page, "Store 재제출").locator(".lastmemo")).toContainText("기기 교체 완료");
+});
+
+test("프로젝트 순서 — 머리줄 끌어 놓기(위로=앞, 아래로=뒤)·Alt+↑↓·새로고침 유지, 미분류는 늘 끝", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const order = () => page.locator("section.group").evaluateAll((els) => els.map((e) => e.getAttribute("data-project")).join(" "));
+  const head = (id: string) => page.locator(`section[data-project="${id}"] .group-head`);
+  // locator.dragTo 는 한 번에 옮겨 Chromium 이 끌기를 시작하지 않는다 — 마우스를 조금씩 움직여 실제처럼.
+  // 창을 세로로 키워 모든 머리줄이 스크롤 없이 보이게(화면 밖 좌표로는 끌 수 없다).
+  await page.setViewportSize({ width: 360, height: 1600 });
+  const drag = async (from: string, to: string) => {
+    const a = (await head(from).boundingBox())!;
+    await page.mouse.move(a.x + 20, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 30, a.y + a.height / 2 + 6, { steps: 3 });
+    const b = (await head(to).boundingBox())!;
+    await page.mouse.move(b.x + 30, b.y + b.height / 2, { steps: 10 });
+    for (const dx of [4, 8]) await page.mouse.move(b.x + 30 + dx, b.y + b.height / 2); // 끌기 중 이동은 한 박자 늦게 반영된다
+    await page.mouse.up();
+  };
+  expect(await order()).toBe("p1 p2 p3 inbox");
+
+  await drag("p3", "p1"); // 위로 → 대상 앞
+  expect(await order()).toBe("p3 p1 p2 inbox");
+  await drag("p3", "p1"); // 아래로 → 대상 뒤
+  expect(await order()).toBe("p1 p3 p2 inbox");
+  await drag("p1", "inbox"); // 미분류에 놓으면 끝(미분류 바로 앞)
+  expect(await order()).toBe("p3 p2 p1 inbox");
+  // 입력줄 프로젝트 목록도 같은 순서.
+  expect(await page.getByLabel("프로젝트").locator("option").evaluateAll((os) => os.map((o) => o.textContent).join(","))).toMatch(/^사내 교육 준비,Cairn,Atlas,미분류/);
+
+  // 키보드: 머리줄 안 버튼에서 Alt+↑↓. 맨 끝(미분류 앞)에서 ↓ 는 그대로.
+  await page.getByRole("button", { name: "Atlas 이름 바꾸기" }).focus();
+  await page.keyboard.press("Alt+ArrowUp");
+  expect(await order()).toBe("p3 p1 p2 inbox");
+  await expect(page.getByRole("button", { name: "Atlas 이름 바꾸기" })).toBeFocused(); // 포커스가 따라간다
+  await page.keyboard.press("Alt+ArrowDown");
+  await page.keyboard.press("Alt+ArrowDown");
+  expect(await order()).toBe("p3 p2 p1 inbox");
+
+  await page.waitForTimeout(700);
+  await page.reload();
+  expect(await order()).toBe("p3 p2 p1 inbox");
+
+  await expect(head("inbox")).not.toHaveAttribute("draggable", "true");
+});
+
+test("찾기 — 빈 검색 = 완료 기록, 제목·메모·담당에서 찾기, 결과 → 상세, Esc·Ctrl+F, 보관 파일은 체크할 때만", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const panel = page.getByTestId("search");
+  const box = page.getByLabel("제목·메모·하위 항목·담당에서 찾기");
+
+  await page.getByRole("button", { name: "찾기" }).click();
+  await expect(panel).toBeVisible();
+  await expect(box).toBeFocused();
+  await expect(page.getByTestId("list")).toHaveCount(0); // 목록 자리를 쓴다
+
+  // 빈 검색 = 완료한 일(최근 완료 순).
+  await expect(panel.locator(".s-count")).toContainText("완료한 일");
+  await expect(panel.locator(".s-hit").first()).toContainText("사용자 문의 메일 답장");
+  await expect(panel.locator(".s-hit.done")).toHaveCount(await panel.locator(".s-hit").count());
+
+  // 메모에서 맞으면 그 메모와 날짜를 함께, 맞은 글자는 칠한다.
+  await box.fill("인증");
+  await expect(panel.locator(".s-count")).toHaveText("1건");
+  const hit = panel.locator(".s-hit").first();
+  await expect(hit.locator(".s-title")).toContainText("Store 재제출");
+  await expect(hit.locator(".s-memo")).toContainText("2단계 인증");
+  await expect(hit.locator("mark")).toHaveText("인증");
+
+  // 낱말 여럿 = 모두 있어야. 담당에서도 찾는다.
+  await box.fill("템플릿 책임");
+  await expect(panel.locator(".s-hit")).toHaveCount(1);
+  await box.fill("템플릿 없는낱말");
+  await expect(panel.getByText("맞는 할 일이 없습니다.")).toBeVisible();
+
+  // 결과를 누르면 상세. Esc 는 상세 먼저, 그다음 찾기.
+  await box.fill("스크린샷");
+  await panel.locator(".s-hit").first().getByRole("button").click();
+  await expect(page.getByTestId("detail")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("detail")).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  await box.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByTestId("list")).toBeVisible();
+
+  // Ctrl+F 로 연다.
+  await page.keyboard.press("Control+f");
+  await expect(box).toBeFocused();
+
+  // 보관 파일(30일 지난 완료)은 체크할 때만 읽는다. 읽기 전용(상세 없음), 옮길 때의 프로젝트 이름.
+  await page.evaluate((y) => localStorage.setItem(`todomd:archive/${y}.json`, JSON.stringify({
+    version: 1, projects: { old: "옛 프로젝트" },
+    items: [{ id: "arch1", projectId: "old", title: "지난봄 이전 작업", status: "done", importance: 2, assignee: "", due: "", createdAt: `${y}-03-01T09:00`, startedAt: null, doneAt: `${y}-03-05T10:00`, subs: [], memos: [{ id: "am", at: `${y}-03-04T10:00`, text: "이전 완료 메모" }] }],
+  })), new Date().getFullYear());
+  await box.fill("지난봄");
+  await expect(panel.getByText("맞는 할 일이 없습니다.")).toBeVisible();
+  await panel.getByLabel("30일 지난 완료(보관 파일)까지").check();
+  const old = panel.locator(".s-hit", { hasText: "지난봄 이전 작업" });
+  await expect(old).toBeVisible();
+  await expect(old.locator(".s-meta")).toContainText("옛 프로젝트");
+  await expect(old.locator(".s-meta")).toContainText("보관 파일");
+  await expect(old.getByRole("button")).toHaveCount(0);
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

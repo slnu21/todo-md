@@ -53,6 +53,15 @@ test.describe("screens", () => {
     await shot(page, "05-detail");
   });
 
+  test("메모 고치기", async ({ page }) => {
+    await fresh(page);
+    await page.getByRole("button", { name: /Store 재제출/ }).click();
+    const memo = page.getByTestId("detail").locator("li.m", { hasText: "서명 경고" });
+    await memo.hover();
+    await memo.getByRole("button", { name: "이 메모 고치기" }).click();
+    await shot(page, "05b-memo-edit");
+  });
+
   test("보관 확인 + 보관 목록 + 하위 펼침", async ({ page }) => {
     await fresh(page);
     const g = page.locator('section[data-project="p3"]');
@@ -65,6 +74,31 @@ test.describe("screens", () => {
     await shot(page, "07-archive-list");
   });
 
+  test("프로젝트 이름 바꾸기 — 머리줄 버튼 + 입력칸", async ({ page }) => {
+    await fresh(page);
+    const g = page.locator('section[data-project="p2"]');
+    await g.locator(".group-head").hover();
+    await shot(page, "06b-rename-hover");
+    await g.getByRole("button", { name: /이름 바꾸기/ }).click();
+    await shot(page, "06c-rename-input");
+  });
+
+  test("프로젝트 끌기 — 놓일 자리 표시", async ({ page }) => {
+    await fresh(page);
+    const head = (id: string) => page.locator(`section[data-project="${id}"] .group-head`);
+    await page.getByTestId("list").evaluate((el) => el.scrollTo(0, 250));
+    const a = (await head("p2").boundingBox())!;
+    await page.mouse.move(a.x + 20, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 30, a.y + a.height / 2 + 6, { steps: 3 });
+    const b = (await head("p3").boundingBox())!;
+    await page.mouse.move(b.x + 30, b.y + b.height / 2, { steps: 8 });
+    for (const dx of [4, 8, 12]) await page.mouse.move(b.x + 30 + dx, b.y + b.height / 2); // 끌기 중 이동은 한 박자 늦게 반영된다
+    await expect(page.locator('section[data-project="p3"]')).toHaveClass(/drop-after/); // dragover 는 조금 늦게 온다
+    await shot(page, "06d-drag-project");
+    await page.mouse.up();
+  });
+
   test("달력 날짜 필터 + 주 보기", async ({ page }) => {
     await fresh(page);
     await page.locator(".day.today").click();
@@ -75,6 +109,25 @@ test.describe("screens", () => {
   test("빈 상태(첫 실행)", async ({ page }) => {
     await fresh(page, "/");
     await shot(page, "09-empty");
+  });
+
+  test("찾기 — 완료 기록 · 검색 결과 · 다크", async ({ page }) => {
+    await fresh(page);
+    await page.getByRole("button", { name: "찾기" }).click();
+    await shot(page, "16-find-done");
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("MSIX");
+    await shot(page, "17-find-query");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("인증");
+    await shot(page, "18-find-dark");
+  });
+
+  test("찾기 — 좁은 폭 300 제목 줄", async ({ page }) => {
+    await page.setViewportSize({ width: 300, height: 600 });
+    await fresh(page);
+    await page.getByRole("button", { name: "찾기" }).click();
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("Store");
+    await shot(page, "19-find-narrow");
   });
 
   test("좁은 폭 300 + 긴 제목", async ({ page }) => {

@@ -17,12 +17,15 @@ fn io_err(what: &str, path: &Path, e: std::io::Error) -> String {
     format!("{} {}: {}", path.display(), what, e)
 }
 
+/// `TODOMD_DATA_DIR` 로 따로 준 데이터 폴더(검증 스크립트·스크린샷). 없거나 비었으면 `None`.
+fn env_data_dir() -> Option<PathBuf> {
+    std::env::var("TODOMD_DATA_DIR").ok().filter(|d| !d.trim().is_empty()).map(PathBuf::from)
+}
+
 /// 데이터 폴더. `TODOMD_DATA_DIR` 이 있으면 그것 — e2e·스크린샷이 **사용자 실데이터를 건드리지 않게**.
 fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    if let Ok(d) = std::env::var("TODOMD_DATA_DIR") {
-        if !d.trim().is_empty() {
-            return Ok(PathBuf::from(d));
-        }
+    if let Some(d) = env_data_dir() {
+        return Ok(d);
     }
     app.path()
         .app_data_dir()
@@ -354,7 +357,17 @@ pub fn run() {
         default_hook(info);
     }));
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // 중복 실행 막기 — 두 번째 실행은 떠 있는 위젯을 보이고(숨겨 뒀으면 다시 도킹) 스스로 끝난다.
+    // 안 막으면 위젯이 둘, 도킹 예약이 두 배, 같은 todo.json 을 두 프로세스가 번갈아 덮어쓴다.
+    // 데이터 폴더를 따로 준 실행(TODOMD_DATA_DIR)은 제외 — 쓰는 파일이 달라 겹쳐도 되고, 막으면 사용자 앱이
+    // 떠 있을 때 검증 exe 가 바로 꺼진다. 검증(desktop-single.mjs)은 `TODOMD_SINGLE_INSTANCE=1` 로 강제로 켠다.
+    // 플러그인은 **맨 먼저** 등록해야 한다(플러그인 문서).
+    let force = std::env::var("TODOMD_SINGLE_INSTANCE").map(|v| v == "1").unwrap_or(false);
+    if env_data_dir().is_none() || force {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| set_widget_visible(app, true)));
+    }
+    builder
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_data_dir,

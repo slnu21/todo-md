@@ -8,7 +8,7 @@ import { NEXT_STATUS } from "../core/actions";
 import { dateOfStamp, timeOfStamp, type PlainDate } from "../core/date";
 import { mdLabel, type Key } from "../core/i18n";
 import { INBOX_ID, type Item, type Project, type TodoData } from "../core/model";
-import { archivedRows, dueInfo, dueOnCount, isYesterday, lastMemo, listGroups, openCount } from "../core/select";
+import { activeProjects, archivedRows, dueInfo, dueOnCount, isYesterday, lastMemo, listGroups, moveBefore, openCount } from "../core/select";
 import { Bars, StatusIcon, useT } from "./ui";
 
 type Dispatch = (a: Action) => void;
@@ -29,6 +29,9 @@ export function ItemList({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  /** 끌고 있는 프로젝트와 지금 놓일 자리 표시(위로 = 대상 앞 줄, 아래로 = 대상 뒤 줄). */
+  const [drag, setDrag] = useState<{ id: string; over: string | null } | null>(null);
 
   const groups = listGroups(data, today, selDate || undefined);
   const archived = archivedRows(data);
@@ -39,6 +42,18 @@ export function ItemList({
     return n;
   };
   const noItems = data.items.every((i) => i.status === "done" || data.projects.find((p) => p.id === i.projectId)?.archived);
+
+  const order = activeProjects(data).map((p) => p.id);
+  const move = (id: string, target: string) => {
+    const before = moveBefore(order, id, target);
+    if (before !== undefined) dispatch({ type: "moveProject", id, before });
+  };
+  const dropSide = (target: string) => {
+    if (!drag || drag.over !== target) return "";
+    const i = order.indexOf(drag.id);
+    const j = order.indexOf(target);
+    return i === j ? "" : j < i ? " drop-before" : " drop-after";
+  };
 
   function archive(p: Project) {
     if (openCount(data, p.id) > 0) setConfirming(p.id);
@@ -54,14 +69,69 @@ export function ItemList({
         </div>
       )}
       {groups.map((g) => (
-        <section key={g.project.id} className="group" data-project={g.project.id} aria-label={name(g.project)}>
-          <div className="group-head">
-            <h3>{name(g.project)}</h3>
+        <section
+          key={g.project.id}
+          className={"group" + dropSide(g.project.id)}
+          data-project={g.project.id}
+          aria-label={name(g.project)}
+          onDragOver={(e) => {
+            if (!drag) return; // 프로젝트를 끌 때만(글자 끌기 등은 모른 척)
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (drag.over !== g.project.id) setDrag({ ...drag, over: g.project.id });
+          }}
+          onDrop={(e) => {
+            if (!drag) return;
+            e.preventDefault();
+            move(drag.id, g.project.id);
+            setDrag(null);
+          }}
+        >
+          <div
+            className="group-head"
+            // 머리줄을 끌어 순서 바꾸기. 키보드는 머리줄 안(이름·보관 버튼)에서 Alt+↑↓. 미분류는 늘 끝이라 제외.
+            draggable={g.project.id !== INBOX_ID && renaming !== g.project.id}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", name(g.project));
+              setDrag({ id: g.project.id, over: null });
+            }}
+            onDragEnd={() => setDrag(null)}
+            onKeyDown={(e) => {
+              if (!e.altKey || g.project.id === INBOX_ID || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+              const i = order.indexOf(g.project.id);
+              const target = order[e.key === "ArrowUp" ? i - 1 : i + 1];
+              e.preventDefault();
+              if (target && target !== INBOX_ID) move(g.project.id, target);
+            }}
+          >
+            {renaming === g.project.id ? (
+              <RenameInput
+                initial={g.project.name}
+                onDone={(v) => {
+                  if (v !== null) dispatch({ type: "renameProject", id: g.project.id, name: v });
+                  setRenaming(null);
+                }}
+              />
+            ) : (
+              // 두 번 눌러도 이름 바꾸기(버튼은 마우스를 올려야 보여서 — 미분류는 제외).
+              <h3
+                title={g.project.id !== INBOX_ID ? t("move.hint") : undefined}
+                onDoubleClick={g.project.id !== INBOX_ID ? () => setRenaming(g.project.id) : undefined}
+              >
+                {name(g.project)}
+              </h3>
+            )}
             <span className="gh-actions">
-              {g.project.id !== INBOX_ID && (
-                <button type="button" className="gh-btn" aria-label={t("arc.aria", { p: name(g.project) })} onClick={() => archive(g.project)}>
-                  {t("gh.archive")}
-                </button>
+              {g.project.id !== INBOX_ID && renaming !== g.project.id && (
+                <>
+                  <button type="button" className="gh-btn" aria-label={t("ren.aria", { p: name(g.project) })} onClick={() => setRenaming(g.project.id)}>
+                    {t("gh.rename")}
+                  </button>
+                  <button type="button" className="gh-btn" aria-label={t("arc.aria", { p: name(g.project) })} onClick={() => archive(g.project)}>
+                    {t("gh.archive")}
+                  </button>
+                </>
               )}
               <span className="counts">
                 {t("list.left", { n: g.open.length })}
@@ -218,6 +288,35 @@ function Row({
         </div>
       )}
     </li>
+  );
+}
+
+/** 프로젝트 이름 고치기: 전체 선택된 채 열린다. Enter·포커스 잃음 = 저장, Esc = 취소(`null`). 한글 조합 중 Enter 는 무시. */
+function RenameInput({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
+  const { t } = useT();
+  const [v, setV] = useState(initial);
+  const done = useRef(false);
+  const finish = (r: string | null) => {
+    if (done.current) return; // Enter 뒤 사라지며 오는 blur 로 두 번 부르지 않게
+    done.current = true;
+    onDone(r);
+  };
+  return (
+    <input
+      className="rename-in"
+      aria-label={t("ren.input")}
+      title={t("ren.input")}
+      value={v}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => finish(v)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
+        if (e.key === "Enter") { e.preventDefault(); finish(v); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(null); }
+      }}
+    />
   );
 }
 

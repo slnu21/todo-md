@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reduce, withStatus, type Action, type Ctx } from "./actions";
 import { emptyData, INBOX_ID, type Item, type TodoData } from "./model";
+import { activeProjects } from "./select";
 
 function ctxAt(now: string): Ctx {
   let n = 0;
@@ -105,6 +106,24 @@ describe("하위 항목과 메모", () => {
       ["2026-09-27T16:40", "서명 경고"],
     ]);
   });
+  it("메모 고치기 — 글만 바뀌고 적은 시각·순서는 그대로", () => {
+    const d0 = seeded();
+    const memos = [{ id: "m1", at: "2026-09-26T10:05", text: "첫 줄" }, { id: "m2", at: "2026-09-27T16:40", text: "둘째 줄" }];
+    const d = { ...d0, items: d0.items.map((i) => (i.id === "a" ? { ...i, memos } : i)) };
+    const e = run(d, { type: "editMemo", itemId: "a", memoId: "m1", text: "  고친\n 첫 줄 " }, "2026-09-29T09:00");
+    expect(item(e, "a").memos.map((m) => [m.at, m.text])).toEqual([
+      ["2026-09-26T10:05", "고친 첫 줄"],
+      ["2026-09-27T16:40", "둘째 줄"],
+    ]);
+  });
+  it("메모 고치기 — 빈 글·같은 글·없는 메모는 그대로(같은 객체)", () => {
+    const d = run(seeded(), { type: "addMemo", itemId: "a", text: "기록" });
+    const id = item(d, "a").memos[0].id;
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: id, text: "   " })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: id, text: " 기록 " })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "a", memoId: "nope", text: "x" })).toBe(d);
+    expect(run(d, { type: "editMemo", itemId: "nope", memoId: id, text: "x" })).toBe(d);
+  });
   it("빈 메모는 남기지 않는다", () => {
     const d0 = seeded();
     expect(run(d0, { type: "addMemo", itemId: "a", text: "  " })).toBe(d0);
@@ -120,6 +139,42 @@ describe("프로젝트", () => {
     const d0 = seeded();
     expect(run(d0, { type: "archiveProject", id: INBOX_ID, doneAll: false })).toBe(d0);
     expect(run(d0, { type: "renameProject", id: INBOX_ID, name: "기타" })).toBe(d0);
+  });
+  it("이름 바꾸기 — 공백을 정리하고, 빈 이름·같은 이름·없는 프로젝트는 그대로", () => {
+    const d0 = seeded();
+    const d = run(d0, { type: "renameProject", id: "p1", name: "  새   이름 " });
+    expect(d.projects.find((p) => p.id === "p1")?.name).toBe("새 이름");
+    expect(run(d0, { type: "renameProject", id: "p1", name: "   " })).toBe(d0);
+    expect(run(d0, { type: "renameProject", id: "p1", name: d0.projects[0].name })).toBe(d0);
+    expect(run(d0, { type: "renameProject", id: "nope", name: "x" })).toBe(d0);
+  });
+  describe("순서 바꾸기", () => {
+    const four = () => {
+      const d = emptyData();
+      d.projects.unshift({ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }, { id: "z", name: "Z", archived: true, archivedAt: "2026-09-01T09:00" });
+      return d; // a b c z(보관) inbox
+    };
+    const ids = (d: TodoData) => d.projects.map((p) => p.id).join(" ");
+    it("앞으로·뒤로", () => {
+      expect(ids(run(four(), { type: "moveProject", id: "c", before: "a" }))).toBe("c a b z inbox");
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: "c" }))).toBe("b a c z inbox");
+    });
+    it("끝으로 = 미분류 바로 앞(before null 이나 미분류)", () => {
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: null }))).toBe("b c z a inbox");
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: INBOX_ID }))).toBe("b c z a inbox");
+    });
+    it("보이는 순서(보관 제외)가 원하는 대로", () => {
+      const d = run(four(), { type: "moveProject", id: "a", before: null });
+      expect(activeProjects(d).map((p) => p.id)).toEqual(["b", "c", "a", INBOX_ID]);
+    });
+    it("미분류·없는 프로젝트·자기 앞·제자리·없는 대상은 그대로(같은 객체)", () => {
+      const d0 = four();
+      expect(run(d0, { type: "moveProject", id: INBOX_ID, before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "nope", before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "b" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "nope" })).toBe(d0);
+    });
   });
   it("그대로 보관 — 할 일은 손대지 않는다", () => {
     const d = run(seeded(), { type: "archiveProject", id: "p1", doneAll: false });

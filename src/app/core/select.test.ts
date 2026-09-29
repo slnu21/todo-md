@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { monthGrid } from "./date";
 import { emptyData, INBOX_ID, type Item, type TodoData } from "./model";
 import {
-  activeProjects, archivedRows, calendarMarks, compareItems, dueInfo, dueOnCount, listGroups, memoDays, weekRowIndex,
+  activeProjects, archivedRows, calendarMarks, compareItems, dueInfo, dueOnCount, listGroups, memoDays, moveBefore, weekRowIndex,
 } from "./select";
 
 const TODAY = "2026-09-28";
@@ -103,5 +103,25 @@ describe("메모 날짜 묶음 · 보관 요약", () => {
   it("보관한 프로젝트마다 완료·남은 수", () => {
     const rows = archivedRows(data([mk("a", { projectId: "old", status: "done" }), mk("b", { projectId: "old" })]));
     expect(rows.map((r) => [r.project.id, r.done, r.open])).toEqual([["old", 1, 1]]);
+  });
+});
+
+describe("moveBefore — 끌어 놓을 자리", () => {
+  const order = ["a", "b", "c", INBOX_ID];
+  it("위로 옮기면 대상 앞", () => {
+    expect(moveBefore(order, "c", "a")).toBe("a");
+    expect(moveBefore(order, "b", "a")).toBe("a");
+  });
+  it("아래로 옮기면 대상 뒤(= 그다음 것 앞)", () => {
+    expect(moveBefore(order, "a", "b")).toBe("c");
+    expect(moveBefore(order, "a", "c")).toBe(INBOX_ID);
+  });
+  it("미분류에 놓으면 끝(null)", () => {
+    expect(moveBefore(order, "a", INBOX_ID)).toBeNull();
+  });
+  it("제자리·모르는 id 는 undefined", () => {
+    expect(moveBefore(order, "a", "a")).toBeUndefined();
+    expect(moveBefore(order, "x", "a")).toBeUndefined();
+    expect(moveBefore(order, "a", "x")).toBeUndefined();
   });
 });
