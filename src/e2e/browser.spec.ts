@@ -124,6 +124,46 @@ test("하위 입력칸 닫기 — 비운 채 바깥 클릭·Esc·버튼 다시 �
   await expect(r.getByLabel("오전 10시")).toHaveCount(0);
 });
 
+test("메모 고치기 — ✎·두 번 누르기, Enter/바깥 = 저장, Esc = 취소(상세는 안 닫힘), 시각은 그대로", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  await page.getByRole("button", { name: /Store 재제출/ }).click();
+  const detail = page.getByTestId("detail");
+  const memo = detail.locator("li.m", { hasText: "매니페스트 머지" });
+  const time = await memo.locator("time").textContent();
+  const input = detail.getByLabel("메모 고치기 — Enter 저장, Esc 취소");
+
+  await memo.hover();
+  await memo.getByRole("button", { name: "이 메모 고치기" }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("시작 메뉴 항목 3개를 1개로 줄인 매니페스트 머지");
+  await input.fill("시작 메뉴 항목 3개 → 1개 매니페스트 머지");
+  await input.press("Enter");
+  const edited = detail.locator("li.m", { hasText: "3개 → 1개" });
+  await expect(edited).toBeVisible();
+  await expect(edited.locator("time")).toHaveText(time!); // 적은 시각은 기록이라 그대로
+
+  // Esc = 취소, 상세 창은 그대로.
+  await edited.locator("span").first().dblclick();
+  await input.fill("버릴 글");
+  await input.press("Escape");
+  await expect(detail).toBeVisible();
+  await expect(detail.locator("li.m", { hasText: "3개 → 1개" })).toBeVisible();
+
+  // 빈 글로 저장하면 원래대로(지우기는 × 로만).
+  await edited.locator("span").first().dblclick();
+  await input.fill("  ");
+  await input.press("Enter");
+  await expect(detail.locator("li.m", { hasText: "3개 → 1개" })).toBeVisible();
+
+  // 바깥 클릭 = 저장. 마지막 메모면 목록의 '마지막 메모' 줄도 바뀐다.
+  const last = detail.locator("li.m", { hasText: "2단계 인증" });
+  await last.locator("span").first().dblclick();
+  await input.fill("2단계 인증 기기 교체 완료");
+  await detail.locator(".pp-foot").click();
+  await expect(detail.locator("li.m", { hasText: "기기 교체 완료" })).toBeVisible();
+  await expect(row(page, "Store 재제출").locator(".lastmemo")).toContainText("기기 교체 완료");
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

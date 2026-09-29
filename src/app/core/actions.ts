@@ -33,6 +33,8 @@ export type Action =
   | { type: "toggleSub"; itemId: string; subId: string; done: boolean }
   | { type: "deleteSub"; itemId: string; subId: string }
   | { type: "addMemo"; itemId: string; text: string }
+  /** 글만 고친다 — 적은 시각(`at`)은 기록이라 그대로. */
+  | { type: "editMemo"; itemId: string; memoId: string; text: string }
   | { type: "deleteMemo"; itemId: string; memoId: string }
   | { type: "setReport"; rules: ReportRules | null };
 
@@ -153,6 +155,13 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
       const text = clean(action.text);
       if (!text) return data;
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: [...it.memos, { id: ctx.newId(), at: ctx.now, text }] }));
+    }
+    case "editMemo": {
+      const text = clean(action.text);
+      const memo = data.items.find((i) => i.id === action.itemId)?.memos.find((m) => m.id === action.memoId);
+      // 빈 글로 고치기 = 지우기가 아니다(지우기는 × — 실수로 기록을 잃지 않게). 같은 글·없는 메모도 그대로.
+      if (!text || !memo || memo.text === text) return data;
+      return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.map((m) => (m.id === action.memoId ? { ...m, text } : m)) }));
     }
     case "deleteMemo":
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.filter((m) => m.id !== action.memoId) }));
