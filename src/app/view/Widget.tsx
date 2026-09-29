@@ -16,6 +16,7 @@ import { Calendar, type CalView } from "./Calendar";
 import { Detail } from "./Detail";
 import { ItemList } from "./ItemList";
 import { QuickInput } from "./QuickInput";
+import { SearchPanel } from "./SearchPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { GearIcon, useT } from "./ui";
 
@@ -42,20 +43,29 @@ export function Widget({
   const [openId, setOpenId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [closeAsk, setCloseAsk] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
 
   const openItem = openId ? data.items.find((i) => i.id === openId) ?? null : null;
   useEffect(() => { if (openId && !openItem) setOpenId(null); }, [openId, openItem]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl+F = 찾기(이미 열려 있으면 검색칸으로). WebView 기본 찾기 막대 대신.
+      if (e.ctrlKey && !e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (findOpen) document.querySelector<HTMLInputElement>('[data-testid="search"] input[type="search"]')?.focus();
+        else { setSettingsOpen(false); setCloseAsk(false); setFindOpen(true); }
+        return;
+      }
       if (e.key !== "Escape") return;
       if (reportOpen) setReportOpen(false);
       else if (closeAsk) setCloseAsk(false);
       else if (settingsOpen) setSettingsOpen(false);
       else if (openId) setOpenId(null);
+      else if (findOpen) setFindOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [settingsOpen, openId, reportOpen, closeAsk]);
+  }, [settingsOpen, openId, reportOpen, closeAsk, findOpen]);
 
   // × = 설정대로 숨기기(트레이)·종료. "ask" 면 처음 한 번 묻고, 고른 값을 기억한다(설정에서 바꿈).
   const runClose = (a: Exclude<CloseAction, "ask">) => (a === "hide" ? void io.hideWidget() : onQuit());
@@ -72,12 +82,24 @@ export function Widget({
   const closeLabel = settings.closeAction === "hide" ? t("bar.hide") : settings.closeAction === "quit" ? t("set.quit") : t("bar.close");
 
   const projects = activeProjects(data);
+  // 데스크톱은 위젯 옆 별도 창(바깥을 누르면 숨는다), 브라우저는 위젯 위 패널. 목록·찾기가 같이 쓴다.
+  const openDetail = (id: string, anchorY: number) =>
+    io.kind === "tauri" ? void io.openDetail(id, anchorY) : setOpenId((cur) => (cur === id ? null : id));
   const projectName = (id: string) => (id === INBOX_ID ? t("inbox.name") : data.projects.find((p) => p.id === id)?.name ?? "");
 
   return (
     <div className="widget" data-testid="widget">
       <div className="w-bar">
         <span className="name">{t("app.name")}</span>
+        <button
+          type="button"
+          className="chipbtn"
+          aria-pressed={findOpen}
+          title={`${t("bar.find")} (Ctrl+F)`}
+          onClick={() => { setSettingsOpen(false); setCloseAsk(false); setFindOpen((v) => !v); }}
+        >
+          {t("bar.find")}
+        </button>
         <button
           type="button"
           className="chipbtn"
@@ -144,37 +166,40 @@ export function Widget({
       {state.saveError && <div className="banner" role="alert" onClick={onDismiss}>{t("err.save", { msg: state.saveError })}</div>}
       {state.fixed > 0 && <div className="banner warn" role="status" onClick={onDismiss}>{t("warn.fixed", { n: state.fixed })}</div>}
 
-      <Calendar
-        data={data}
-        today={today}
-        selDate={selDate}
-        view={cal}
-        onView={setCal}
-        onPick={(d) => setSelDate((cur) => (cur === d ? "" : d))}
-      />
-      <QuickInput
-        projects={projects}
-        projectId={settings.lastProjectId}
-        onProject={(id) => updateSettings((s) => ({ ...s, lastProjectId: id }))}
-        selDate={selDate}
-        onAdd={(a) => dispatch({ type: "addItem", ...a })}
-        onCreateProject={(name) => {
-          const before = new Set(data.projects.map((p) => p.id));
-          const next = dispatch({ type: "addProject", name });
-          return next.projects.find((p) => !before.has(p.id))?.id ?? null;
-        }}
-      />
-      <ItemList
-        data={data}
-        today={today}
-        selDate={selDate}
-        onClearDate={() => setSelDate("")}
-        onOpen={(id, anchorY) =>
-          // 데스크톱은 위젯 옆 별도 창(바깥을 누르면 숨는다), 브라우저는 위젯 위 패널.
-          io.kind === "tauri" ? void io.openDetail(id, anchorY) : setOpenId((cur) => (cur === id ? null : id))
-        }
-        dispatch={dispatch}
-      />
+      {findOpen ? (
+        <SearchPanel data={data} today={today} onOpen={openDetail} onClose={() => setFindOpen(false)} />
+      ) : (
+        <>
+          <Calendar
+            data={data}
+            today={today}
+            selDate={selDate}
+            view={cal}
+            onView={setCal}
+            onPick={(d) => setSelDate((cur) => (cur === d ? "" : d))}
+          />
+          <QuickInput
+            projects={projects}
+            projectId={settings.lastProjectId}
+            onProject={(id) => updateSettings((s) => ({ ...s, lastProjectId: id }))}
+            selDate={selDate}
+            onAdd={(a) => dispatch({ type: "addItem", ...a })}
+            onCreateProject={(name) => {
+              const before = new Set(data.projects.map((p) => p.id));
+              const next = dispatch({ type: "addProject", name });
+              return next.projects.find((p) => !before.has(p.id))?.id ?? null;
+            }}
+          />
+          <ItemList
+            data={data}
+            today={today}
+            selDate={selDate}
+            onClearDate={() => setSelDate("")}
+            onOpen={openDetail}
+            dispatch={dispatch}
+          />
+        </>
+      )}
       {reportOpen && (
         <div className="report-overlay" role="dialog" aria-label={t("r.title")}>
           <ReportView

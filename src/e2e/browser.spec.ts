@@ -250,6 +250,65 @@ test("프로젝트 순서 — 머리줄 끌어 놓기(위로=앞, 아래로=뒤)
   await expect(head("inbox")).not.toHaveAttribute("draggable", "true");
 });
 
+test("찾기 — 빈 검색 = 완료 기록, 제목·메모·담당에서 찾기, 결과 → 상세, Esc·Ctrl+F, 보관 파일은 체크할 때만", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const panel = page.getByTestId("search");
+  const box = page.getByLabel("제목·메모·하위 항목·담당에서 찾기");
+
+  await page.getByRole("button", { name: "찾기" }).click();
+  await expect(panel).toBeVisible();
+  await expect(box).toBeFocused();
+  await expect(page.getByTestId("list")).toHaveCount(0); // 목록 자리를 쓴다
+
+  // 빈 검색 = 완료한 일(최근 완료 순).
+  await expect(panel.locator(".s-count")).toContainText("완료한 일");
+  await expect(panel.locator(".s-hit").first()).toContainText("사용자 문의 메일 답장");
+  await expect(panel.locator(".s-hit.done")).toHaveCount(await panel.locator(".s-hit").count());
+
+  // 메모에서 맞으면 그 메모와 날짜를 함께, 맞은 글자는 칠한다.
+  await box.fill("인증");
+  await expect(panel.locator(".s-count")).toHaveText("1건");
+  const hit = panel.locator(".s-hit").first();
+  await expect(hit.locator(".s-title")).toContainText("Store 재제출");
+  await expect(hit.locator(".s-memo")).toContainText("2단계 인증");
+  await expect(hit.locator("mark")).toHaveText("인증");
+
+  // 낱말 여럿 = 모두 있어야. 담당에서도 찾는다.
+  await box.fill("템플릿 책임");
+  await expect(panel.locator(".s-hit")).toHaveCount(1);
+  await box.fill("템플릿 없는낱말");
+  await expect(panel.getByText("맞는 할 일이 없습니다.")).toBeVisible();
+
+  // 결과를 누르면 상세. Esc 는 상세 먼저, 그다음 찾기.
+  await box.fill("스크린샷");
+  await panel.locator(".s-hit").first().getByRole("button").click();
+  await expect(page.getByTestId("detail")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("detail")).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  await box.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByTestId("list")).toBeVisible();
+
+  // Ctrl+F 로 연다.
+  await page.keyboard.press("Control+f");
+  await expect(box).toBeFocused();
+
+  // 보관 파일(30일 지난 완료)은 체크할 때만 읽는다. 읽기 전용(상세 없음), 옮길 때의 프로젝트 이름.
+  await page.evaluate((y) => localStorage.setItem(`todomd:archive/${y}.json`, JSON.stringify({
+    version: 1, projects: { old: "옛 프로젝트" },
+    items: [{ id: "arch1", projectId: "old", title: "지난봄 이전 작업", status: "done", importance: 2, assignee: "", due: "", createdAt: `${y}-03-01T09:00`, startedAt: null, doneAt: `${y}-03-05T10:00`, subs: [], memos: [{ id: "am", at: `${y}-03-04T10:00`, text: "이전 완료 메모" }] }],
+  })), new Date().getFullYear());
+  await box.fill("지난봄");
+  await expect(panel.getByText("맞는 할 일이 없습니다.")).toBeVisible();
+  await panel.getByLabel("30일 지난 완료(보관 파일)까지").check();
+  const old = panel.locator(".s-hit", { hasText: "지난봄 이전 작업" });
+  await expect(old).toBeVisible();
+  await expect(old.locator(".s-meta")).toContainText("옛 프로젝트");
+  await expect(old.locator(".s-meta")).toContainText("보관 파일");
+  await expect(old.getByRole("button")).toHaveCount(0);
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

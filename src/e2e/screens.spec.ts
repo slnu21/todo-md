@@ -111,6 +111,25 @@ test.describe("screens", () => {
     await shot(page, "09-empty");
   });
 
+  test("찾기 — 완료 기록 · 검색 결과 · 다크", async ({ page }) => {
+    await fresh(page);
+    await page.getByRole("button", { name: "찾기" }).click();
+    await shot(page, "16-find-done");
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("MSIX");
+    await shot(page, "17-find-query");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("인증");
+    await shot(page, "18-find-dark");
+  });
+
+  test("찾기 — 좁은 폭 300 제목 줄", async ({ page }) => {
+    await page.setViewportSize({ width: 300, height: 600 });
+    await fresh(page);
+    await page.getByRole("button", { name: "찾기" }).click();
+    await page.getByLabel("제목·메모·하위 항목·담당에서 찾기").fill("Store");
+    await shot(page, "19-find-narrow");
+  });
+
   test("좁은 폭 300 + 긴 제목", async ({ page }) => {
     await page.setViewportSize({ width: 300, height: 700 });
     await fresh(page);

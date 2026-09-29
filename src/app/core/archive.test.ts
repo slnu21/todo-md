@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { archiveName, byYear, mergeArchive, parseArchive, splitOldDone } from "./archive";
+import { archiveName, archiveSources, archiveYears, byYear, mergeArchive, parseArchive, splitOldDone } from "./archive";
 import { emptyData, type Item } from "./model";
 
 const mk = (id: string, p: Partial<Item>): Item => ({
@@ -48,5 +48,19 @@ describe("보관 파일 합치기", () => {
   });
   it("깨진 보관 파일은 빈 것으로 본다", () => {
     expect(parseArchive("{ nope")).toEqual({ version: 1, projects: {}, items: [] });
+  });
+});
+
+describe("찾기에서 보관 파일 읽기", () => {
+  it("읽어 볼 해 = 올해부터 2026 까지(최근 먼저)", () => {
+    expect(archiveYears("2026-09-29")).toEqual([2026]);
+    expect(archiveYears("2028-01-02")).toEqual([2028, 2027, 2026]);
+  });
+  it("프로젝트 이름은 옮길 때 적어 둔 것, 모르면 빈 이름. 할 일이 아닌 줄은 거른다", () => {
+    const file = parseArchive(JSON.stringify({
+      projects: { p1: "옛 이름" },
+      items: [{ id: "a", projectId: "p1", title: "A" }, { id: "b", projectId: "gone", title: "B" }, null, { title: "id 없음" }],
+    }));
+    expect(archiveSources(file).map((s) => [s.item.id, s.project, s.archived])).toEqual([["a", "옛 이름", true], ["b", "", true]]);
   });
 });

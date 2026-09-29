@@ -64,3 +64,18 @@ export function mergeArchive(existing: ArchiveFile, items: Item[], data: TodoDat
 }
 
 export const archiveName = (year: number): string => `archive/${year}.json`;
+
+/** 보관 파일이 있을 수 있는 해 — 올해부터 앱이 처음 나온 해(2026)까지, 최근 해 먼저. 목록 커맨드 없이 차례로 읽어 본다. */
+export const FIRST_ARCHIVE_YEAR = 2026;
+export function archiveYears(today: PlainDate): number[] {
+  const out: number[] = [];
+  for (let y = +today.slice(0, 4); y >= FIRST_ARCHIVE_YEAR; y--) out.push(y);
+  return out;
+}
+
+/** 보관 파일 → 찾기 대상. 프로젝트 이름은 옮길 때 적어 둔 것(지금 이름과 다를 수 있다). 할 일이 아닌 줄은 거른다. */
+export function archiveSources(file: ArchiveFile): { item: Item; project: string; archived: true }[] {
+  return file.items
+    .filter((i) => i && typeof i === "object" && typeof i.id === "string")
+    .map((item) => ({ item, project: file.projects[item.projectId] ?? "", archived: true as const }));
+}
