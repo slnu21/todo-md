@@ -84,7 +84,8 @@ const md = renderNotices({
 });
 
 if (process.argv.includes("--check")) {
-  const cur = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
+  // git(autocrlf)이 체크아웃 때 CRLF 로 바꿀 수 있다 — 줄끝은 비교에서 뺀다.
+  const cur = existsSync(OUT) ? readFileSync(OUT, "utf8").replace(/\r\n/g, "\n") : "";
   if (cur !== md) {
     console.error("THIRD-PARTY-NOTICES.md 가 의존성과 다르다 → node scripts/notices.mjs");
     process.exit(1);
