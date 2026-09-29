@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "TODO.md",
   "mainBinaryName": "todo-md",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "identifier": "com.slnu21.todo-md",
   "build": {
     "frontendDist": "../dist",
