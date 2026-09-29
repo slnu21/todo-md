@@ -102,6 +102,29 @@ try {
   await sleep(700);
   console.log("[dbg] 바깥 클릭 뒤 전경 창:", foregroundRect());
   check("바깥(위젯)을 누르면 숨는다 — 실제 OS 클릭", !(await visible("detail")));
+
+  // 바깥 클릭으로 숨은 뒤에도 **다시 열려야 한다**(v0.3.0 버그: Win32 로 직접 숨겨 Tauri 가 '보이는 중'으로 알고
+  // 다음 show 를 무시했다). 같은 할 일·다른 할 일 둘 다.
+  osClick(...toScreen(t));
+  await sleep(900);
+  check("바깥 클릭으로 숨은 뒤 같은 할 일을 누르면 다시 뜬다", await visible("detail"));
+  osClick(...toScreen(name));
+  await sleep(700);
+  const other = widget.locator("li.item", { hasText: "스크린샷 다시 찍기" });
+  const t2 = await other.locator(".title-btn .t").evaluate((el) => { const r = el.getBoundingClientRect(); return { x: r.left + 12, y: r.top + r.height / 2 }; });
+  osClick(...toScreen(t2));
+  await sleep(900);
+  check("바깥 클릭으로 숨은 뒤 다른 할 일을 누르면 그 할 일로 뜬다",
+    (await visible("detail")) && (await detail.locator("#pp-title").inputValue()).includes("스크린샷 다시 찍기"));
+  osClick(...toScreen(name));
+  await sleep(700);
+  check("다시 바깥을 누르면 또 숨는다", !(await visible("detail")));
+
+  // 종료하면 프로세스가 스스로 끝나야 한다(강제 종료 없이). 상세 창을 한 번 숨긴 뒤라도.
+  // quit 은 CDP 연결을 닫기 **전에** 보낸다(닫은 뒤엔 evaluate 가 가지 않는다). 응답 전에 페이지가 사라질 수 있어 기다리지 않는다.
+  const exited = new Promise((r) => app.once("exit", () => r(true)));
+  void widget.evaluate(() => window.__TAURI_INTERNALS__.invoke("quit_app")).catch(() => {});
+  check("종료하면 프로세스가 5초 안에 끝난다", await Promise.race([exited, sleep(5000).then(() => false)]));
   await browser.close().catch(() => {});
 } finally {
   await widget?.evaluate(() => window.__TAURI_INTERNALS__.invoke("quit_app")).catch(() => {});
