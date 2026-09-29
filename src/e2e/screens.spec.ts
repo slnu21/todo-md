@@ -83,6 +83,22 @@ test.describe("screens", () => {
     await shot(page, "06c-rename-input");
   });
 
+  test("프로젝트 끌기 — 놓일 자리 표시", async ({ page }) => {
+    await fresh(page);
+    const head = (id: string) => page.locator(`section[data-project="${id}"] .group-head`);
+    await page.getByTestId("list").evaluate((el) => el.scrollTo(0, 250));
+    const a = (await head("p2").boundingBox())!;
+    await page.mouse.move(a.x + 20, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 30, a.y + a.height / 2 + 6, { steps: 3 });
+    const b = (await head("p3").boundingBox())!;
+    await page.mouse.move(b.x + 30, b.y + b.height / 2, { steps: 8 });
+    for (const dx of [4, 8, 12]) await page.mouse.move(b.x + 30 + dx, b.y + b.height / 2); // 끌기 중 이동은 한 박자 늦게 반영된다
+    await expect(page.locator('section[data-project="p3"]')).toHaveClass(/drop-after/); // dragover 는 조금 늦게 온다
+    await shot(page, "06d-drag-project");
+    await page.mouse.up();
+  });
+
   test("달력 날짜 필터 + 주 보기", async ({ page }) => {
     await fresh(page);
     await page.locator(".day.today").click();

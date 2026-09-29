@@ -135,6 +135,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .gh-btn { border: 0; background: none; padding: 0; font-size: 11.5px; color: var(--faint); cursor: pointer; opacity: 0; }
 .group-head:hover .gh-btn, .gh-btn:focus-visible { opacity: 1; }
 .gh-btn:hover { color: var(--accent); }
+.group-head[draggable="true"] { cursor: grab; }
+.group-head[draggable="true"]:active { cursor: grabbing; }
+/* 놓일 자리 선 — 붙어 있는 머리줄(z-index 2, 배경 있음)에 가리지 않게 그 위 층에 그린다. */
+.group.drop-before, .group.drop-after { position: relative; }
+.group.drop-before::before, .group.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent); z-index: 3; pointer-events: none; }
+.group.drop-before::before { top: 0; }
+.group.drop-after::after { bottom: 0; }
 .rename-in { flex: 1; min-width: 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--fg); background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px; margin: -2px 0; }
 .confirm { margin: 6px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; }
 .confirm .acts { display: flex; flex-wrap: wrap; gap: 6px; }

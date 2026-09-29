@@ -206,6 +206,50 @@ test("메모 고치기 — ✎·두 번 누르기, Enter/바깥 = 저장, Esc = 
   await expect(row(page, "Store 재제출").locator(".lastmemo")).toContainText("기기 교체 완료");
 });
 
+test("프로젝트 순서 — 머리줄 끌어 놓기(위로=앞, 아래로=뒤)·Alt+↑↓·새로고침 유지, 미분류는 늘 끝", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const order = () => page.locator("section.group").evaluateAll((els) => els.map((e) => e.getAttribute("data-project")).join(" "));
+  const head = (id: string) => page.locator(`section[data-project="${id}"] .group-head`);
+  // locator.dragTo 는 한 번에 옮겨 Chromium 이 끌기를 시작하지 않는다 — 마우스를 조금씩 움직여 실제처럼.
+  // 창을 세로로 키워 모든 머리줄이 스크롤 없이 보이게(화면 밖 좌표로는 끌 수 없다).
+  await page.setViewportSize({ width: 360, height: 1600 });
+  const drag = async (from: string, to: string) => {
+    const a = (await head(from).boundingBox())!;
+    await page.mouse.move(a.x + 20, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 30, a.y + a.height / 2 + 6, { steps: 3 });
+    const b = (await head(to).boundingBox())!;
+    await page.mouse.move(b.x + 30, b.y + b.height / 2, { steps: 10 });
+    for (const dx of [4, 8]) await page.mouse.move(b.x + 30 + dx, b.y + b.height / 2); // 끌기 중 이동은 한 박자 늦게 반영된다
+    await page.mouse.up();
+  };
+  expect(await order()).toBe("p1 p2 p3 inbox");
+
+  await drag("p3", "p1"); // 위로 → 대상 앞
+  expect(await order()).toBe("p3 p1 p2 inbox");
+  await drag("p3", "p1"); // 아래로 → 대상 뒤
+  expect(await order()).toBe("p1 p3 p2 inbox");
+  await drag("p1", "inbox"); // 미분류에 놓으면 끝(미분류 바로 앞)
+  expect(await order()).toBe("p3 p2 p1 inbox");
+  // 입력줄 프로젝트 목록도 같은 순서.
+  expect(await page.getByLabel("프로젝트").locator("option").evaluateAll((os) => os.map((o) => o.textContent).join(","))).toMatch(/^사내 교육 준비,Cairn,Atlas,미분류/);
+
+  // 키보드: 머리줄 안 버튼에서 Alt+↑↓. 맨 끝(미분류 앞)에서 ↓ 는 그대로.
+  await page.getByRole("button", { name: "Atlas 이름 바꾸기" }).focus();
+  await page.keyboard.press("Alt+ArrowUp");
+  expect(await order()).toBe("p3 p1 p2 inbox");
+  await expect(page.getByRole("button", { name: "Atlas 이름 바꾸기" })).toBeFocused(); // 포커스가 따라간다
+  await page.keyboard.press("Alt+ArrowDown");
+  await page.keyboard.press("Alt+ArrowDown");
+  expect(await order()).toBe("p3 p2 p1 inbox");
+
+  await page.waitForTimeout(700);
+  await page.reload();
+  expect(await order()).toBe("p3 p2 p1 inbox");
+
+  await expect(head("inbox")).not.toHaveAttribute("draggable", "true");
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

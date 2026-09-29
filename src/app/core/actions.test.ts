@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reduce, withStatus, type Action, type Ctx } from "./actions";
 import { emptyData, INBOX_ID, type Item, type TodoData } from "./model";
+import { activeProjects } from "./select";
 
 function ctxAt(now: string): Ctx {
   let n = 0;
@@ -146,6 +147,34 @@ describe("프로젝트", () => {
     expect(run(d0, { type: "renameProject", id: "p1", name: "   " })).toBe(d0);
     expect(run(d0, { type: "renameProject", id: "p1", name: d0.projects[0].name })).toBe(d0);
     expect(run(d0, { type: "renameProject", id: "nope", name: "x" })).toBe(d0);
+  });
+  describe("순서 바꾸기", () => {
+    const four = () => {
+      const d = emptyData();
+      d.projects.unshift({ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }, { id: "z", name: "Z", archived: true, archivedAt: "2026-09-01T09:00" });
+      return d; // a b c z(보관) inbox
+    };
+    const ids = (d: TodoData) => d.projects.map((p) => p.id).join(" ");
+    it("앞으로·뒤로", () => {
+      expect(ids(run(four(), { type: "moveProject", id: "c", before: "a" }))).toBe("c a b z inbox");
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: "c" }))).toBe("b a c z inbox");
+    });
+    it("끝으로 = 미분류 바로 앞(before null 이나 미분류)", () => {
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: null }))).toBe("b c z a inbox");
+      expect(ids(run(four(), { type: "moveProject", id: "a", before: INBOX_ID }))).toBe("b c z a inbox");
+    });
+    it("보이는 순서(보관 제외)가 원하는 대로", () => {
+      const d = run(four(), { type: "moveProject", id: "a", before: null });
+      expect(activeProjects(d).map((p) => p.id)).toEqual(["b", "c", "a", INBOX_ID]);
+    });
+    it("미분류·없는 프로젝트·자기 앞·제자리·없는 대상은 그대로(같은 객체)", () => {
+      const d0 = four();
+      expect(run(d0, { type: "moveProject", id: INBOX_ID, before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "nope", before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "a" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "b" })).toBe(d0);
+      expect(run(d0, { type: "moveProject", id: "a", before: "nope" })).toBe(d0);
+    });
   });
   it("그대로 보관 — 할 일은 손대지 않는다", () => {
     const d = run(seeded(), { type: "archiveProject", id: "p1", doneAll: false });

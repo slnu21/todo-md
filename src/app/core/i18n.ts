@@ -77,6 +77,7 @@ const ko = {
 
   "gh.archive": "보관",
   "gh.rename": "이름",
+  "move.hint": "끌어서 순서 바꾸기 · 두 번 눌러 이름 바꾸기 (키보드: Alt+↑↓)",
   "ren.aria": "{p} 이름 바꾸기",
   "ren.input": "프로젝트 이름 — Enter 저장, Esc 취소",
   "arc.aria": "{p} 보관",
@@ -278,6 +279,7 @@ const en: Record<Key, string> = {
 
   "gh.archive": "Archive",
   "gh.rename": "Rename",
+  "move.hint": "Drag to reorder · double-click to rename (keyboard: Alt+↑↓)",
   "ren.aria": "Rename {p}",
   "ren.input": "Project name — Enter to save, Esc to cancel",
   "arc.aria": "Archive {p}",
