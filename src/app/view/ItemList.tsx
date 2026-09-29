@@ -2,7 +2,7 @@
  * 프로젝트별 목록. 소제목(스크롤해도 위에 붙음) 아래 할 일 체크리스트.
  * 정렬·묶음·마감 칩 값은 전부 core/select 에서 받는다 — 여기서 계산하지 않는다.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Action } from "../core/actions";
 import { NEXT_STATUS } from "../core/actions";
 import { dateOfStamp, timeOfStamp, type PlainDate } from "../core/date";
@@ -91,6 +91,7 @@ export function ItemList({
                 today={today}
                 expanded={expanded.has(it.id)}
                 onExpand={() => setExpanded((s) => toggle(s, it.id))}
+                onCollapse={() => setExpanded((s) => { const n = new Set(s); n.delete(it.id); return n; })}
                 onOpen={(y) => onOpen(it.id, y)}
                 dispatch={dispatch}
               />
@@ -129,12 +130,13 @@ export function ItemList({
 }
 
 function Row({
-  item, today, expanded, onExpand, onOpen, dispatch,
+  item, today, expanded, onExpand, onCollapse, onOpen, dispatch,
 }: {
   item: Item;
   today: PlainDate;
   expanded: boolean;
   onExpand: () => void;
+  onCollapse: () => void;
   onOpen: (anchorY: number) => void;
   dispatch: Dispatch;
 }) {
@@ -144,6 +146,7 @@ function Row({
   const subsDone = item.subs.filter((s) => s.done).length;
   const statusName = (s: Item["status"]) => t(`status.${s}` as Key);
   const impName = t(`imp.${item.importance}` as Key);
+  const subToggleRef = useRef<HTMLButtonElement>(null);
   const memoWhen = memo
     ? dateOfStamp(memo.at) === today ? timeOfStamp(memo.at)
       : isYesterday(dateOfStamp(memo.at), today) ? t("ago.yesterday")
@@ -186,7 +189,7 @@ function Row({
             {due?.kind === "tomorrow" && <span>{t("due.tomorrow")}</span>}
             {due?.kind === "date" && <span>{mdLabel(lang, due.date)}</span>}
             {item.assignee && <span className="who">{item.assignee}</span>}
-            <button type="button" className="subtoggle" aria-expanded={expanded} onClick={onExpand}>
+            <button ref={subToggleRef} type="button" className="subtoggle" aria-expanded={expanded} onClick={onExpand}>
               {item.subs.length ? t("sub.count", { a: subsDone, b: item.subs.length }) : t("sub.add")}
             </button>
             {item.memos.length > 0 && <span>{t("memo.count", { n: item.memos.length })}</span>}
@@ -205,6 +208,12 @@ function Row({
             placeholder={t("sub.ph")}
             autoFocus={item.subs.length === 0}
             onEnter={(v) => dispatch({ type: "addSub", itemId: item.id, title: v })}
+            onCancel={(how, to) => {
+              // Esc = 언제나 접기(포커스는 펼침 버튼으로). 비운 채 떠나면 = 하위가 없을 때만 접기(추가하려고 연 칸이라서).
+              // 펼침 버튼으로 옮겨 간 거면 그 클릭이 접으므로 여기서 접지 않는다(접었다 다시 펼쳐지는 것 방지).
+              if (how === "escape") { onCollapse(); subToggleRef.current?.focus(); }
+              else if (item.subs.length === 0 && to !== subToggleRef.current) onCollapse();
+            }}
           />
         </div>
       )}
@@ -223,13 +232,17 @@ function AddLine({ project, label, due, dispatch }: { project: Project; label: s
   );
 }
 
-/** 한 줄 입력: Enter 로 내보내고 비운 뒤 포커스를 그대로 둔다(연달아 적기). 한글 조합 중 Enter 는 무시. */
+/**
+ * 한 줄 입력: Enter 로 내보내고 비운 뒤 포커스를 그대로 둔다(연달아 적기). 한글 조합 중 Enter 는 무시.
+ * `onCancel` 이 있으면 Esc(조합 중 제외)로, 그리고 **비운 채 포커스를 잃으면**(`relatedTarget` = 옮겨 간 곳) 부른다.
+ */
 export function LineInput({
-  placeholder, ariaLabel, onEnter, autoFocus, className = "line-in",
+  placeholder, ariaLabel, onEnter, onCancel, autoFocus, className = "line-in",
 }: {
   placeholder: string;
   ariaLabel?: string;
   onEnter: (v: string) => void;
+  onCancel?: (how: "escape" | "blur", to: Element | null) => void;
   autoFocus?: boolean;
   className?: string;
 }) {
@@ -242,7 +255,15 @@ export function LineInput({
       value={v}
       autoFocus={autoFocus}
       onChange={(e) => setV(e.target.value)}
+      onBlur={(e) => { if (onCancel && !v.trim()) onCancel("blur", e.relatedTarget as Element | null); }}
       onKeyDown={(e) => {
+        if (e.key === "Escape" && onCancel && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          e.stopPropagation();
+          setV("");
+          onCancel("escape", null);
+          return;
+        }
         if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
         e.preventDefault();
         if (!v.trim()) return;

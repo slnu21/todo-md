@@ -83,6 +83,47 @@ test("하위 항목 한 단계 — 목록에서 펼쳐 추가·체크", async ({
   await expect(r.getByRole("button", { name: "하위 1/1" })).toBeVisible();
 });
 
+test("하위 입력칸 닫기 — 비운 채 바깥 클릭·Esc·버튼 다시 누르기", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const r = row(page, "회의실 예약");
+  const add = r.getByRole("button", { name: "하위 추가" });
+  const input = r.getByPlaceholder("하위 항목 추가 후 Enter");
+
+  // 비운 채 다른 곳을 누르면 접힌다(하위가 없을 때 — 추가하려고 연 칸).
+  await add.click();
+  await expect(input).toBeFocused();
+  await titleInput(page).click();
+  await expect(input).toHaveCount(0);
+  await expect(add).toHaveAttribute("aria-expanded", "false");
+
+  // Esc 로 접히고 포커스는 펼침 버튼으로. 쓰던 글자가 있어도 Esc 는 접는다.
+  await add.click();
+  await input.fill("쓰다 만 것");
+  await input.press("Escape");
+  await expect(input).toHaveCount(0);
+  await expect(add).toBeFocused();
+
+  // 입력칸에 포커스가 있을 때 펼침 버튼을 다시 누르면 접힌다(바깥 클릭 접기와 겹쳐 다시 펼쳐지지 않게).
+  await add.click();
+  await expect(input).toBeFocused();
+  await add.click();
+  await expect(input).toHaveCount(0);
+
+  // 글자가 남아 있으면 바깥 클릭으로 접지 않는다(쓰던 걸 잃지 않게).
+  await add.click();
+  await input.fill("남겨 둘 것");
+  await titleInput(page).click();
+  await expect(input).toHaveValue("남겨 둘 것");
+
+  // 하위가 이미 있으면 비운 채 떠나도 펼친 채 둔다(체크하러 연 것일 수 있다). Esc 는 접는다.
+  await input.fill("오전 10시");
+  await input.press("Enter");
+  await titleInput(page).click();
+  await expect(r.getByLabel("오전 10시")).toBeVisible();
+  await input.press("Escape");
+  await expect(r.getByLabel("오전 10시")).toHaveCount(0);
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

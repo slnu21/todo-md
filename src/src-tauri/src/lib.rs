@@ -290,7 +290,19 @@ async fn open_detail_window(app: AppHandle, item_id: String, anchor_y: f64) -> R
             #[cfg(windows)]
             {
                 let h = w.hwnd().map_err(|e| e.to_string())?.0 as isize;
-                app.run_on_main_thread(move || appbar::attach_autohide(h)).map_err(|e| e.to_string())?;
+                let handle = app.clone();
+                app.run_on_main_thread(move || {
+                    appbar::attach_autohide(h, move || {
+                        // 창 프로시저 안이라 바로 부르지 않고 작업 스레드를 거쳐 이벤트 루프 메시지로 숨긴다.
+                        let handle = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Some(d) = handle.get_webview_window("detail") {
+                                let _ = d.hide();
+                            }
+                        });
+                    })
+                })
+                .map_err(|e| e.to_string())?;
             }
             w
         }

@@ -8,7 +8,7 @@
 //! 창 닫힘 · 앱 종료(RunEvent::Exit) · 패닉 훅(릴리스는 panic=abort 라 훅이 마지막 기회). 숨길 때도 해제한다.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use windows::core::{BOOL, PCWSTR};
@@ -20,7 +20,7 @@ use windows::Win32::UI::Shell::{
     ABM_SETPOS, ABN_POSCHANGED, APPBARDATA,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    RegisterWindowMessageW, SetWindowPos, ShowWindow, HWND_TOPMOST, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, WM_ACTIVATE,
+    RegisterWindowMessageW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_SHOWWINDOW, WM_ACTIVATE,
     WM_DISPLAYCHANGE, WM_DPICHANGED, WM_SETTINGCHANGE,
 };
 
@@ -283,18 +283,28 @@ pub fn place_topmost(hwnd_raw: isize, x: i32, y: i32, w: i32, h: i32) -> Result<
 
 const WA_INACTIVE: usize = 0;
 
+/// 상세 창이 비활성화될 때 부를 것(숨기기). 호출자가 Tauri 로 숨긴다 — 아래 autohide_proc 주석.
+static ON_DEACTIVATE: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+
 unsafe extern "system" fn autohide_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _id: usize, _data: usize) -> LRESULT {
     let r = DefSubclassProc(hwnd, msg, wp, lp);
     // 다른 창이 활성화되면(바깥을 누르면) 숨는다. WM_ACTIVATE 는 최상위 창 단위라, WebView 안에서 포커스가
     // 옮겨 다니는 것(Tauri Focused(false) 가 첫 표시 때 거짓으로 오는 원인)에 흔들리지 않는다.
+    // ⚠ 여기서 ShowWindow(SW_HIDE) 로 직접 숨기지 않는다 — Tauri(tao)는 창이 여전히 보인다고 알고 있어
+    // 다음 show() 를 '이미 보임'으로 건너뛰어 다시 열리지 않았고, 종료도 멈췄다(v0.3.0). 숨기기는 Tauri 에게.
     if msg == WM_ACTIVATE && (wp.0 & 0xFFFF) == WA_INACTIVE {
-        let _ = ShowWindow(hwnd, SW_HIDE);
+        if let Some(f) = ON_DEACTIVATE.get() {
+            f();
+        }
     }
     r
 }
 
-/// 창이 비활성화되면 스스로 숨게 한다(상세 창). **창을 만든 스레드에서 불러야 한다**(SetWindowSubclass 제약).
-pub fn attach_autohide(hwnd_raw: isize) {
+/// 창이 비활성화되면 `on_deactivate` 를 부르게 한다(상세 창 숨기기). **창을 만든 스레드에서 불러야 한다**
+/// (SetWindowSubclass 제약). `on_deactivate` 는 창 프로시저 안에서 불리므로 Tauri 창 API 를 바로 부르지 말고
+/// 이벤트 루프로 넘겨야 한다(재진입).
+pub fn attach_autohide(hwnd_raw: isize, on_deactivate: impl Fn() + Send + Sync + 'static) {
+    let _ = ON_DEACTIVATE.set(Box::new(on_deactivate));
     unsafe {
         let _ = SetWindowSubclass(hwnd_of(hwnd_raw), Some(autohide_proc), 2, 0);
     }
