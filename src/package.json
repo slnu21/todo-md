@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "notices": "node scripts/notices.mjs",
+    "notices:check": "node scripts/notices.mjs --check"
   },
   "dependencies": {
     "@tauri-apps/api": "~2.12.0",
