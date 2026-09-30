@@ -32,6 +32,7 @@
 - **프로젝트 보관** — 끝난 프로젝트는 보관해 목록에서 치우고, 언제든 되돌립니다.
 - **주간보고** — 할 일과 메모 기록을 금주 실적·차주 계획 마크다운으로. 복사하거나 .md 로 저장. 프리셋 셋, 간단 설정, 템플릿 직접 편집.
 - **오래된 완료 항목 보관** — 완료한 지 30일 지나면 `archive\YYYY.json` 으로 옮겨 평소 파일을 작게.
+- **내보내기** — 할 일·메모 전부(보관 파일 포함)를 JSON 파일 하나로(설정 ▸ 데이터 폴더).
 - **테마·언어** — 시스템 / 라이트 / 다크, 시스템 / 한국어 / English.
 
 ## 개발
@@ -88,6 +89,7 @@ Download a zip from [Releases](https://github.com/slnu21/todo-md/releases), unpa
 - **Archive projects** — tidy finished projects away and restore them any time.
 - **Weekly report** — turns to-dos and memos into a This week / Next week Markdown report. Copy it or save as .md. Three presets, quick settings, or edit the templates directly.
 - **Archive for old completed items** — to-dos completed over 30 days ago move to `archive\YYYY.json`, keeping the everyday file small.
+- **Export** — all to-dos and memos (archive files included) as one JSON file (Settings ▸ Data folder).
 - **Theme and language** — System / Light / Dark, System / 한국어 / English.
 
 ## Development
