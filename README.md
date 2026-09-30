@@ -48,7 +48,7 @@ powershell -File ..\packaging\pack-zip.ps1   # 포터블 zip
 
 ## 라이선스
 
-MIT © 2026 slnu21 · 포함한 오픈소스 구성요소는 [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md)
+© 2026 SlnU(slnu21). 무료로 쓸 수 있으며, 개인·업무 사용 모두 허용합니다. 사용 조건은 [EULA](./legal/EULA.md), 개인정보는 [개인정보 처리방침](./legal/privacy.md)(수집하지 않음), 포함한 오픈소스 구성요소는 [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 
 ---
 
@@ -104,4 +104,4 @@ powershell -File ..\packaging\pack-zip.ps1   # portable zip
 
 ## License
 
-MIT © 2026 slnu21 · Open-source components included: [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md)
+© 2026 SlnU (slnu21). Free to use, for personal and business use alike. Terms: [EULA](./legal/EULA.md) · Privacy: [Privacy Policy](./legal/privacy.md) (nothing is collected) · Open-source components: [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
