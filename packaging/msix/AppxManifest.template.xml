@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TODO.md MSIX 매니페스트 템플릿. pack-msix.ps1 이 @토큰@ 을 바꾼다.
+  · Store 제출: Identity Name / Publisher / PublisherDisplayName = Partner Center 예약값(스크립트 인자).
+  · Full-trust Win32 앱: EntryPoint=Windows.FullTrustApplication + rescap:runFullTrust.
+  · <Application> 은 하나만 — 하나가 곧 시작 메뉴 항목 하나. 숨긴 항목(AppListEntry="none")은 Store 가 거부한다(md-reader·Atlas 경험).
+  · 로그인 시 자동 실행(StartupTask)은 넣지 않는다 — 사용자 결정(2026-09-30). 설치판 설정에선 그 체크를 숨긴다.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity Name="@IDENTITY_NAME@"
+            Publisher="@PUBLISHER@"
+            Version="@VERSION@"
+            ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>TODO.md</DisplayName>
+    <PublisherDisplayName>@PUBLISHER_DISPLAY@</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="ko-KR" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="TodoMd" Executable="@EXE@" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="TODO.md"
+        Description="화면 가장자리에 늘 붙어 있는 할 일 목록과 메모 기록 · 오프라인"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Square71x71Logo="Assets\Square71x71Logo.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

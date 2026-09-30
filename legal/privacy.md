@@ -1,7 +1,7 @@
 # 개인정보 처리방침 / Privacy Policy
 
 - **제품 / Product:** TODO.md (Windows 데스크톱 앱)
-- **시행일 / Effective date:** 2026-09-30
+- **시행일 / Effective date:** 2026-09-30 (Store 설치판 저장 위치 추가 / added Store edition storage location)
 - **게시자 / Publisher:** `SlnU`
 - **문의 / Contact:** `raltlsdn@naver.com`
 
@@ -17,7 +17,8 @@
 ### 2. 데이터 저장 (사용자 기기에만)
 - 사용자가 적은 할 일·메모·주간보고 설정은 **사용자 기기의 데이터 폴더**(`%APPDATA%\com.slnu21.todo-md\`)에만 저장됩니다: `todo.json`, 30일 지난 완료 항목을 옮긴 `archive\YYYY.json`, 자동 백업 `todo.json.bak1~3`.
 - 창 위치·테마·언어 등 화면 설정은 같은 폴더의 `settings.json`에 저장됩니다.
-- 사용자가 '로그인 시 자동 실행'을 켜면 Windows 현재 사용자 레지스트리(`HKCU\...\Run`)에 실행 경로를 기록하고, 끄면 지웁니다.
+- **Microsoft Store 설치판**은 Windows가 위 폴더를 앱 전용 자리(`%LOCALAPPDATA%\Packages\<앱 패키지>\LocalCache\Roaming\com.slnu21.todo-md\`)로 옮겨 저장하며, 앱을 제거하면 함께 삭제됩니다. 설정 화면의 데이터 폴더는 이 실제 자리를 보여 줍니다.
+- (포터블판) 사용자가 '로그인 시 자동 실행'을 켜면 Windows 현재 사용자 레지스트리(`HKCU\...\Run`)에 실행 경로를 기록하고, 끄면 지웁니다.
 - 주간보고를 복사하거나 `.md`로 저장할 때는 사용자가 누른 동작에 따라 클립보드나 사용자가 고른 파일에만 씁니다.
 - 위 데이터는 사용자 기기를 벗어나지 않습니다. 데이터 폴더는 설정 화면에서 열 수 있으며, 사용자가 직접 지울 수 있습니다.
 
@@ -50,7 +51,8 @@ The App collects no personal information. There is no account or sign-in, and th
 ### 2. Data Storage (On Your Device Only)
 - Your to-dos, memos and weekly report settings are stored **only in the data folder on your device** (`%APPDATA%\com.slnu21.todo-md\`): `todo.json`, `archive\YYYY.json` (completed items older than 30 days), and automatic backups `todo.json.bak1–3`.
 - Window position, theme and language are stored in `settings.json` in the same folder.
-- If you turn on "Launch at sign-in", the App writes its path to the current user's Windows registry (`HKCU\...\Run`) and removes it when you turn it off.
+- In the **Microsoft Store edition**, Windows keeps that folder in an app-private location (`%LOCALAPPDATA%\Packages\<app package>\LocalCache\Roaming\com.slnu21.todo-md\`), and it is removed when you uninstall the App. The data folder shown in Settings is this actual location.
+- (Portable edition) If you turn on "Launch at sign-in", the App writes its path to the current user's Windows registry (`HKCU\...\Run`) and removes it when you turn it off.
 - When you copy a weekly report or save it as `.md`, the App writes only to the clipboard or to the file you choose, as you requested.
 - This data never leaves your device. You can open the data folder from Settings and delete it yourself.
 

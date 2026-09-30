@@ -30,7 +30,13 @@ export function SettingsPanel({
 
   useEffect(() => {
     void io.listMonitors().then(setMonitors).catch(() => setMonitors([]));
-    if (desktop) void io.getAutostart().then(setAutostart).catch(() => setAutostart(false));
+    // 로그인 시 자동 실행은 포터블 전용(HKCU Run) — Store 설치판에선 레지스트리가 가상화돼 듣지 않으므로 숨긴다(null).
+    if (desktop) {
+      void io.isPackaged()
+        .then((packaged) => (packaged ? null : io.getAutostart()))
+        .then((v) => setAutostart(v))
+        .catch(() => setAutostart(false));
+    }
   }, [desktop]);
 
   const dock = settings.dock;

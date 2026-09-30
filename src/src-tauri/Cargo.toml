@@ -22,9 +22,9 @@ tauri-plugin-dialog = "~2.7.0"
 # 중복 실행 막기(Apache-2.0 OR MIT). 2.5 = tauri ^2.12 — 위 tauri 와 부 버전을 맞춘다(pitfalls)
 tauri-plugin-single-instance = "~2.5.0"
 
-# Tauri 가 이미 쓰는 0.62 — 도킹(AppBar)·모니터·DPI 를 Win32 로 직접 부른다(appbar.rs)
+# Tauri 가 이미 쓰는 0.62 — 도킹(AppBar)·모니터·DPI 를 Win32 로 직접 부른다(appbar.rs). 패키지 여부(package.rs)
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Storage_Packaging_Appx", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 # 늘 떠 있는 작은 앱 — 배포 크기가 중요하다

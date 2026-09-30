@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod appbar;
+mod package;
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -56,9 +57,16 @@ fn data_path(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
     Ok(p)
 }
 
+/// 화면에 보여 줄 데이터 폴더(설정). Store 설치판이면 Windows 가 돌려 놓은 실제 자리(package.rs).
 #[tauri::command]
 fn get_data_dir(app: AppHandle) -> Result<String, String> {
-    Ok(data_dir(&app)?.to_string_lossy().into_owned())
+    Ok(package::on_disk(data_dir(&app)?).to_string_lossy().into_owned())
+}
+
+/// Store(MSIX) 설치판인가 — 화면이 포터블 전용 기능(로그인 시 자동 실행 = HKCU Run)을 숨긴다.
+#[tauri::command]
+fn is_packaged() -> bool {
+    package::family_name().is_some()
 }
 
 /// 없는 파일은 `None` — 첫 실행.
@@ -118,6 +126,8 @@ fn backup_data_file(app: AppHandle, name: String) -> Result<(), String> {
 fn open_data_dir(app: AppHandle) -> Result<(), String> {
     let dir = data_dir(&app)?;
     fs::create_dir_all(&dir).map_err(|e| io_err("폴더 만들기", &dir, e))?;
+    // 탐색기는 패키지 밖이라 가상화를 모른다 — 실제 자리를 넘긴다(만든 뒤에 물어야 그 자리가 생겨 있다).
+    let dir = package::on_disk(dir);
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer.exe")
@@ -371,6 +381,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_data_dir,
+            is_packaged,
             read_data_file,
             write_data_file,
             backup_data_file,
