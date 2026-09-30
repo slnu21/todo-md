@@ -14,6 +14,7 @@ import type { AppState } from "./store";
 import { ReportView } from "./ReportView";
 import { Calendar, type CalView } from "./Calendar";
 import { Detail } from "./Detail";
+import { exportAll } from "./exportData";
 import { ItemList } from "./ItemList";
 import { QuickInput } from "./QuickInput";
 import { SearchPanel } from "./SearchPanel";
@@ -158,6 +159,7 @@ export function Widget({
           dataDir={state.dataDir}
           onChange={updateSettings}
           onOpenDataDir={onOpenDataDir}
+          onExport={() => exportAll(data, t("inbox.name"))}
           onQuit={onQuit}
         />
       )}

@@ -309,6 +309,29 @@ test("찾기 — 빈 검색 = 완료 기록, 제목·메모·담당에서 찾기
   await expect(old.getByRole("button")).toHaveCount(0);
 });
 
+test("내보내기 — 설정에서 JSON 한 파일로, 보관 파일 포함, 개수 안내", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  const y = new Date().getFullYear();
+  await page.evaluate((year) => localStorage.setItem(`todomd:archive/${year}.json`, JSON.stringify({
+    version: 1, projects: { old: "옛 프로젝트" },
+    items: [{ id: "arch1", projectId: "old", title: "보관된 일", status: "done", importance: 2, assignee: "", due: "", createdAt: `${year}-03-01T09:00`, startedAt: null, doneAt: `${year}-03-05T10:00`, subs: [], memos: [] }],
+  })), y);
+  await page.waitForFunction(() => localStorage.getItem("todomd:todo.json") !== null); // 예시 데이터는 0.5초 모아 저장된다
+  const liveCount = await page.evaluate(() => JSON.parse(localStorage.getItem("todomd:todo.json")!).items.length as number);
+
+  await page.getByRole("button", { name: /설정/ }).click();
+  const dl = page.waitForEvent("download");
+  await page.getByRole("button", { name: "내보내기" }).click();
+  const file = await dl;
+  expect(file.suggestedFilename()).toMatch(/^TODO\.md-export-\d{4}-\d{2}-\d{2}\.json$/);
+  const json = JSON.parse(await (await import("node:fs/promises")).readFile((await file.path())!, "utf8"));
+  expect(json).toMatchObject({ format: "todo-md-export", version: 1, app: { name: "TODO.md" } });
+  expect(json.items).toHaveLength(liveCount + 1);
+  expect(json.items.at(-1)).toMatchObject({ id: "arch1", project: "옛 프로젝트", fromArchive: true });
+  expect(json.projects.find((p: { inbox: boolean }) => p.inbox)).toMatchObject({ name: "미분류" });
+  await expect(page.getByRole("status").filter({ hasText: "내보냈습니다" })).toHaveText(`할 일 ${liveCount + 1}개를 내보냈습니다`);
+});
+
 test("보관: 남은 일이 있으면 묻고, 되돌릴 수 있다", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const g = page.locator('section[data-project="p3"]');

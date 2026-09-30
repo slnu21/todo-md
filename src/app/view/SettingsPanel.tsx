@@ -12,15 +12,18 @@ const BOX_W = 300;
 const BOX_H = 96;
 
 export function SettingsPanel({
-  settings, dataDir, onChange, onOpenDataDir, onQuit,
+  settings, dataDir, onChange, onOpenDataDir, onExport, onQuit,
 }: {
   settings: Settings;
   dataDir: string;
   onChange: (fn: (s: Settings) => Settings) => void;
   onOpenDataDir: () => void;
+  /** 내보낸 할 일 수, 취소하면 null. */
+  onExport: () => Promise<number | null>;
   onQuit: () => void;
 }) {
   const { t } = useT();
+  const [exportMsg, setExportMsg] = useState("");
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const desktop = io.kind === "tauri";
@@ -138,8 +141,22 @@ export function SettingsPanel({
         <p className="path">{dataDir}</p>
         <div className="pop-row">
           <button type="button" className="btn ghost" onClick={onOpenDataDir}>{t("set.openData")}</button>
+          <button
+            type="button"
+            className="btn ghost"
+            title={t("set.exportTitle")}
+            onClick={() => {
+              setExportMsg("");
+              onExport()
+                .then((n) => { if (n !== null) setExportMsg(t("set.exported", { n })); })
+                .catch((e) => setExportMsg(t("set.exportFail", { msg: String(e) })));
+            }}
+          >
+            {t("set.export")}
+          </button>
           {desktop && <button type="button" className="btn ghost danger-btn" onClick={onQuit}>{t("set.quit")}</button>}
         </div>
+        {exportMsg && <p className="note export-msg" role="status">{exportMsg}</p>}
       </div>
     </div>
   );

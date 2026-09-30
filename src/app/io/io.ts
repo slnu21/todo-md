@@ -49,9 +49,15 @@ export interface Io {
   seedRequested(): Promise<boolean>;
   /** 주간보고 창 열기(데스크톱). 브라우저는 위젯 위 패널로 그리므로 여기를 안 부른다. */
   openReportWindow(title: string): Promise<void>;
-  /** 저장 대화상자 → 텍스트 파일. 취소하면 false. 브라우저는 다운로드. */
-  saveText(defaultName: string, contents: string): Promise<boolean>;
+  /** 저장 대화상자 → 텍스트 파일(`kind` = 대화상자 형식 거르개). 취소하면 false. 브라우저는 다운로드. */
+  saveText(defaultName: string, contents: string, kind?: TextKind): Promise<boolean>;
 }
+
+export type TextKind = "md" | "json";
+const TEXT_KINDS: Record<TextKind, { filter: string; mime: string }> = {
+  md: { filter: "Markdown", mime: "text/markdown;charset=utf-8" },
+  json: { filter: "JSON", mime: "application/json;charset=utf-8" },
+};
 
 const tauriIo: Io = {
   kind: "tauri",
@@ -72,9 +78,9 @@ const tauriIo: Io = {
   quit: () => invoke("quit_app"),
   seedRequested: () => invoke<boolean>("seed_requested"),
   openReportWindow: (title) => invoke("open_report_window", { title }),
-  saveText: async (defaultName, contents) => {
+  saveText: async (defaultName, contents, kind = "md") => {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    const path = await save({ defaultPath: defaultName, filters: [{ name: "Markdown", extensions: ["md"] }] });
+    const path = await save({ defaultPath: defaultName, filters: [{ name: TEXT_KINDS[kind].filter, extensions: [kind] }] });
     if (!path) return false;
     await invoke("write_text_to", { path, contents });
     return true;
@@ -108,8 +114,8 @@ const browserIo: Io = {
   quit: async () => {},
   seedRequested: async () => new URLSearchParams(location.search).get("seed") === "sample",
   openReportWindow: async () => {},
-  saveText: async (defaultName, contents) => {
-    const url = URL.createObjectURL(new Blob([contents], { type: "text/markdown;charset=utf-8" }));
+  saveText: async (defaultName, contents, kind = "md") => {
+    const url = URL.createObjectURL(new Blob([contents], { type: TEXT_KINDS[kind].mime }));
     const a = Object.assign(document.createElement("a"), { href: url, download: defaultName });
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
