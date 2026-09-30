@@ -37,6 +37,8 @@ export interface Io {
   listMonitors(): Promise<MonitorInfo[]>;
   /** 트레이로 숨기기(예약도 푼다). */
   hideWidget(): Promise<void>;
+  /** Store(MSIX) 설치판인가. 포터블 전용 기능(로그인 시 자동 실행)을 숨기는 데 쓴다. */
+  isPackaged(): Promise<boolean>;
   getAutostart(): Promise<boolean>;
   setAutostart(on: boolean): Promise<void>;
   setTrayLabels(toggle: string, quit: string): Promise<void>;
@@ -69,6 +71,7 @@ const tauriIo: Io = {
   applyPlacement: (placement) => invoke("apply_placement", { placement }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
   hideWidget: () => invoke("hide_widget"),
+  isPackaged: () => invoke<boolean>("is_packaged"),
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (on) => invoke("set_autostart", { on }),
   setTrayLabels: (toggle, quit) => invoke("set_tray_labels", { toggle, quit }),
@@ -105,6 +108,7 @@ const browserIo: Io = {
   // 브라우저에는 모니터를 물을 방법이 없다 — 설정 화면이 그림을 그릴 수 있게 화면 하나를 흉내 낸다.
   listMonitors: async () => [{ name: "", primary: true, x: 0, y: 0, width: screen.width, height: screen.height, scale: devicePixelRatio }],
   hideWidget: async () => {},
+  isPackaged: async () => false,
   getAutostart: async () => false,
   setAutostart: async () => {},
   setTrayLabels: async () => {},
