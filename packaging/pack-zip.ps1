@@ -43,6 +43,12 @@ try {
     Copy-Item (Join-Path $PSScriptRoot 'README-portable.md') -Destination (Join-Path $stage 'README.md')
     $notices = Join-Path $root 'THIRD-PARTY-NOTICES.md'
     if (Test-Path $notices) { Copy-Item $notices -Destination $stage }
+    # 사용 조건·개인정보 처리방침(legal/) — 없으면 멈춘다(조건 없는 배포물을 내지 않는다).
+    foreach ($doc in 'EULA.md', 'privacy.md') {
+        $src = Join-Path $root "legal\$doc"
+        if (-not (Test-Path $src)) { throw "법률 문서가 없다: $src" }
+        Copy-Item $src -Destination $stage
+    }
 
     $outDir = Join-Path $root 'release'
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
