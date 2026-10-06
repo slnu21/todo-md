@@ -108,6 +108,7 @@ const ko = {
   "arc.restore": "되돌리기",
 
   "pp.close": "닫기",
+  "pp.projectHint": "다른 프로젝트로 옮기기",
   "pp.titleAria": "할 일 제목",
   "pp.status": "상태",
   "pp.imp": "중요도",
@@ -326,6 +327,7 @@ const en: Record<Key, string> = {
   "arc.restore": "Restore",
 
   "pp.close": "Close",
+  "pp.projectHint": "Move to another project",
   "pp.titleAria": "To-do title",
   "pp.status": "Status",
   "pp.imp": "Priority",

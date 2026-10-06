@@ -5,8 +5,8 @@
 import { useEffect, useState } from "react";
 import type { Action } from "../core/actions";
 import type { PlainDate } from "../core/date";
-import { INBOX_ID, type TodoData } from "../core/model";
-import { activeProjects } from "../core/select";
+import type { TodoData } from "../core/model";
+import { activeProjects, moveTargets } from "../core/select";
 import type { CloseAction, Settings } from "../core/settings";
 import { defaultReport } from "../core/report";
 import { io } from "../io/io";
@@ -86,7 +86,6 @@ export function Widget({
   // 데스크톱은 위젯 옆 별도 창(바깥을 누르면 숨는다), 브라우저는 위젯 위 패널. 목록·찾기가 같이 쓴다.
   const openDetail = (id: string, anchorY: number) =>
     io.kind === "tauri" ? void io.openDetail(id, anchorY) : setOpenId((cur) => (cur === id ? null : id));
-  const projectName = (id: string) => (id === INBOX_ID ? t("inbox.name") : data.projects.find((p) => p.id === id)?.name ?? "");
 
   return (
     <div className="widget" data-testid="widget">
@@ -217,7 +216,7 @@ export function Widget({
       {openItem && (
         <Detail
           item={openItem}
-          projectName={projectName(openItem.projectId)}
+          projects={moveTargets(data, openItem.projectId)}
           today={today}
           onClose={() => setOpenId(null)}
           dispatch={dispatch}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { monthGrid } from "./date";
 import { emptyData, INBOX_ID, type Item, type TodoData } from "./model";
 import {
-  activeProjects, archivedRows, calendarMarks, compareItems, dueInfo, dueOnCount, listGroups, memoDays, moveBefore, weekRowIndex,
+  activeProjects, archivedRows, calendarMarks, compareItems, dueInfo, dueOnCount, listGroups, memoDays, moveBefore, moveTargets, weekRowIndex,
 } from "./select";
 
 const TODAY = "2026-09-28";
@@ -103,6 +103,15 @@ describe("메모 날짜 묶음 · 보관 요약", () => {
   it("보관한 프로젝트마다 완료·남은 수", () => {
     const rows = archivedRows(data([mk("a", { projectId: "old", status: "done" }), mk("b", { projectId: "old" })]));
     expect(rows.map((r) => [r.project.id, r.done, r.open])).toEqual([["old", 1, 1]]);
+  });
+});
+
+describe("moveTargets — 상세의 프로젝트 고르기", () => {
+  it("활성 프로젝트만, 미분류는 끝", () => {
+    expect(moveTargets(data([]), "p1").map((p) => p.id)).toEqual(["p1", "p2", INBOX_ID]);
+  });
+  it("지금 프로젝트가 보관된 것이면 맨 앞에 그것도", () => {
+    expect(moveTargets(data([]), "old").map((p) => p.id)).toEqual(["old", "p1", "p2", INBOX_ID]);
   });
 });
 

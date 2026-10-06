@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Action } from "../core/actions";
 import { timeOfStamp, type PlainDate } from "../core/date";
 import { longDay, mdLabel, type Key } from "../core/i18n";
-import type { Item, Status } from "../core/model";
+import { INBOX_ID, type Item, type Project, type Status } from "../core/model";
 import { memoDays } from "../core/select";
 import { LineInput } from "./ItemList";
 import { Bars, IMPORTANCES, Seg, useT } from "./ui";
@@ -15,10 +15,11 @@ import { Bars, IMPORTANCES, Seg, useT } from "./ui";
 const STATUSES: Status[] = ["todo", "doing", "done"];
 
 export function Detail({
-  item, projectName, today, onClose, dispatch,
+  item, projects, today, onClose, dispatch,
 }: {
   item: Item;
-  projectName: string;
+  /** 옮길 수 있는 프로젝트(core/select moveTargets). 보관된 것은 지금 프로젝트일 때만 들어 있고 고를 수 없다. */
+  projects: Project[];
   today: PlainDate;
   onClose: () => void;
   dispatch: (a: Action) => void;
@@ -62,7 +63,17 @@ export function Detail({
     >
       <div className="pp-head">
         <div>
-          <div className="proj">{projectName}</div>
+          <select
+            className="proj"
+            aria-label={t("pp.projectHint")}
+            title={t("pp.projectHint")}
+            value={item.projectId}
+            onChange={(e) => dispatch({ type: "moveItem", id: item.id, projectId: e.target.value })}
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id} disabled={p.archived}>{p.id === INBOX_ID ? t("inbox.name") : p.name}</option>
+            ))}
+          </select>
           <textarea
             id="pp-title"
             ref={titleRef}

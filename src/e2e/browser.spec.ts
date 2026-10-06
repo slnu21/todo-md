@@ -72,6 +72,23 @@ test("메모 기록: Enter 마다 한 줄, 시각이 붙고, 목록에 마지막
   await expect(row(page, "스크린샷 다시 찍기").locator(".lastmemo")).toContainText("다크 테마도 찍기");
 });
 
+test("다른 프로젝트로 옮기기 — 상세의 프로젝트 칸, 메모·하위는 따라간다, 보관한 프로젝트는 목록에 없다", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  await row(page, "교육 자료 초안").getByRole("button", { name: "교육 자료 초안" }).click();
+  const pick = page.getByTestId("detail").getByLabel("다른 프로젝트로 옮기기");
+  await expect(pick).toHaveValue("p3");
+  await expect(pick.locator("option")).toHaveText(["Atlas", "Cairn", "사내 교육 준비", "미분류"]);
+  await pick.selectOption({ label: "Cairn" });
+  await expect(page.getByTestId("detail").getByText("목차")).toBeVisible(); // 상세는 그대로 열려 있다
+  await page.keyboard.press("Escape");
+  const cairn = page.locator('section.group[data-project="p2"]');
+  await expect(cairn.locator("li.item", { hasText: "교육 자료 초안" })).toContainText("1/2");
+  await expect(page.locator('section.group[data-project="p3"]').locator("li.item", { hasText: "교육 자료 초안" })).toHaveCount(0);
+  // 새로고침해도 옮긴 자리
+  await page.reload();
+  await expect(cairn.locator("li.item", { hasText: "교육 자료 초안" })).toHaveCount(1);
+});
+
 test("하위 항목 한 단계 — 목록에서 펼쳐 추가·체크", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   const r = row(page, "회의실 예약");
