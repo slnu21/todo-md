@@ -74,17 +74,21 @@ The widget reserves one edge of the screen like the taskbar, so even maximized w
 
 ---
 
-## 스크린샷 (직접 찍어 올린다 — 최소 1장, 권장 4장, 1366×768 이상)
+## 스크린샷 (`store/screenshots/`, 1920×1080 — 언어별 4장)
 
-1. 화면 오른쪽에 도킹된 위젯과 옆의 작업 창(가장 중요한 한 장 — "늘 보인다")
-2. 할 일 상세 창 + 메모 기록
-3. 주간보고 창(마크다운 결과)
-4. 찾기 · 다크 테마
+`cd src; node scripts/store-shots.mjs ../store/screenshots --lang ko|en` 으로 다시 만든다(빌드한 exe + 예시 데이터, 실데이터 안 건드림). 화면이 바뀌면 다시 찍는다.
+
+| 순서 | ko-KR | en-US | 장면 |
+|---|---|---|---|
+| 1 | `store-ko-1-dock.png` | `store-en-1-dock.png` | 오른쪽 도킹 위젯 — "늘 보인다"(가장 중요한 한 장) |
+| 2 | `store-ko-2-detail.png` | `store-en-2-detail.png` | 할 일 상세 창 + 메모 기록 |
+| 3 | `store-ko-3-report.png` | `store-en-3-report.png` | 주간보고 창(마크다운 결과) |
+| 4 | `store-ko-4-dark.png` | `store-en-4-dark.png` | 다크 테마 · 달력 |
 
 ## 제출 체크리스트 (Partner Center — 사용자 직접)
 
 - [ ] 앱 이름 **TODO.md** 예약 → Identity Name 확인(예상: `SlnU.TODO.md`, Publisher 는 md-reader 와 같은 `CN=1398342C-…`)
 - [ ] `pack-msix.ps1 -IdentityName <예약값>` 으로 MSIX 생성 → 업로드
 - [ ] 가격 무료 · 시장 · 연령 등급 설문 · 카테고리 생산성
-- [ ] 위 문안(ko/en) · 스크린샷 · 개인정보 URL · EULA URL · 지원 연락처
+- [ ] 위 문안(ko/en) · 스크린샷(`store/screenshots/`, ✅ 2026-10-06) · 개인정보 URL · EULA URL · 지원 연락처
 - [ ] runFullTrust 사유: "데스크톱 앱 — 화면 가장자리 도킹(AppBar)·트레이·로컬 파일 저장"

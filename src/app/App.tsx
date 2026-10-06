@@ -20,7 +20,7 @@ export function App() {
     let stopHost = () => {};
     void (async () => {
       const seed = await io.seedRequested().catch(() => false);
-      await store.load(seed ? () => sampleData(plainOf(new Date())) : undefined);
+      await store.load(seed ? (lang) => sampleData(plainOf(new Date()), lang) : undefined);
       stopHost = await startHost(store); // 보고 창에 상태를 뿌리고 변경을 받는다(데스크톱만)
     })();
     // 자정을 넘기면 '오늘'이 바뀐다 — 늘 떠 있는 창이라 1분마다 확인한다.

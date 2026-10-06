@@ -9,6 +9,7 @@ import { useSyncExternalStore } from "react";
 import { reduce, type Action } from "../core/actions";
 import { archiveName, byYear, mergeArchive, parseArchive, splitOldDone } from "../core/archive";
 import { plainOf, stampOf } from "../core/date";
+import { resolveLang, type Lang } from "../core/i18n";
 import { emptyData, type TodoData } from "../core/model";
 import { parseData, serializeData } from "../core/schema";
 import { parseSettings, serializeSettings, type Settings } from "../core/settings";
@@ -56,11 +57,11 @@ export class Store {
     this.listeners.forEach((l) => l());
   }
 
-  async load(seed?: () => TodoData): Promise<void> {
+  async load(seed?: (lang: Lang) => TodoData): Promise<void> {
     const [text, settingsText, dataDir] = await Promise.all([io.read(DATA_FILE), io.read(SETTINGS_FILE), io.dataDir()]);
     const settings = parseSettings(settingsText);
     if (text === null) {
-      const data = seed ? seed() : emptyData();
+      const data = seed ? seed(resolveLang(settings.lang, navigator.language)) : emptyData();
       this.set({ loaded: true, data, settings, dataDir });
       if (seed) this.dataSaver.schedule(serializeData(data));
       return;
