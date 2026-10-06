@@ -5,6 +5,7 @@
  * - 기본은 **주 모니터가 아닌** 모니터(있으면)에 위젯을 도킹한다 → 주 모니터(그대로 100%)와 배율이 다른 '섞인 배율'.
  *   상세 창은 주 모니터에서 만들어진 뒤 위젯 옆으로 옮겨지므로 이 경우가 가장 위험하다.
  * - 실행 중 배율을 원래대로 되돌려(WM_DPICHANGED) 위젯이 다시 맞춰지는지도 본다.
+ * - 상세 창은 **실제 OS 클릭**으로 연다(커서를 잠깐 옮긴다). 전체 화면 앱(게임 등)이 앞에 있으면 클릭이 그리로 간다 — 돌리기 전 확인.
  * - ⚠ 배율은 Windows 설정 값이라 OS 전역이다. finally 에서 반드시 원래 값으로 되돌린다(scripts/dpi-scale.ps1).
  *   그 모니터의 다른 창들이 잠깐 다시 배치된다.
  */
@@ -64,6 +65,21 @@ o.Add(s+"|"+r.L+","+r.T+","+r.Ri+","+r.B+"|"+mi.w.L+","+mi.w.T+","+mi.w.Ri+","+m
   });
 }
 
+/**
+ * 실제 OS 클릭(물리 px). 상세 창은 **OS 클릭으로 연다** — CDP 클릭으로 열면 앱이 앞쪽 프로세스가 아니라 set_focus 가
+ * 거절되고, 창이 뜨자마자 '비활성화'로 잡혀 숨는 일이 가끔 있다(5회 중 1회, desktop-detail.mjs 와 같은 이유).
+ * 클릭하는 쪽도 모니터별 DPI 인식이어야 좌표가 배율로 나뉘지 않는다. 커서는 원래 자리로 돌려놓는다.
+ */
+function osClick(x, y) {
+  const ps = `Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class M{[StructLayout(LayoutKind.Sequential)]public struct P{public int X,Y;}[DllImport("user32.dll")]public static extern bool GetCursorPos(out P p);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(int f,int x,int y,int d,int e);[DllImport("user32.dll")]public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr c);}'; [void][M]::SetThreadDpiAwarenessContext([IntPtr]::new(-4)); $p=New-Object M+P; [void][M]::GetCursorPos([ref]$p); [void][M]::SetCursorPos(${x},${y}); [M]::mouse_event(2,0,0,0,0); [M]::mouse_event(4,0,0,0,0); Start-Sleep -Milliseconds 80; [void][M]::SetCursorPos($p.X,$p.Y)`;
+  execFileSync("powershell", ["-NoProfile", "-Command", ps]);
+}
+/** 위젯 안 요소의 가운데 왼쪽 → 화면 물리 좌표. */
+async function clickInWidget(locator, wg, s) {
+  const r = await locator.evaluate((el) => { const b = el.getBoundingClientRect(); return { x: b.left + 12, y: b.top + b.height / 2 }; });
+  osClick(Math.round(wg.l + r.x * s), Math.round(wg.t + r.y * s));
+}
+
 const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok, detail });
 
@@ -118,16 +134,17 @@ try {
   const row = widget.locator("li.item").first();
   const rowTop = await row.evaluate((el) => el.getBoundingClientRect().top);
   const pp = ctx.waitForEvent("page", { timeout: 10_000 });
-  await row.locator(".title-btn").click();
+  await clickInWidget(row.locator(".title-btn .t"), wg, s);
   const detail = await pp;
   await detail.waitForSelector('[data-testid="detail"]');
   await sleep(900);
-  const dt = windowsOf(app.pid).find((w) => w.title === "TODO.md" && w !== undefined && w.l < wg.l && w.h <= 660 * s);
+  const wins = windowsOf(app.pid);
+  const dt = wins.find((w) => w.title === "TODO.md" && w.l < wg.l && w.h <= 660 * s);
   const ddpr = await detail.evaluate(() => devicePixelRatio);
   const diw = await detail.evaluate(() => innerWidth);
   check("상세: 페이지 배율 = 모니터 배율, 논리 폭 360", ddpr === s && diw === 360, `dpr=${ddpr} innerWidth=${diw}`);
   check(`상세: 물리 폭 360×${s}, 위젯 바로 왼쪽(간격 6×${s})·같은 모니터`,
-    dt && dt.w === Math.round(360 * s) && wg.l - dt.r === Math.round(6 * s) && dt.l >= mon.x && dt.dpi === target * 0.96, JSON.stringify(dt));
+    dt && dt.w === Math.round(360 * s) && wg.l - dt.r === Math.round(6 * s) && dt.l >= mon.x && dt.dpi === target * 0.96, JSON.stringify(dt ?? wins));
   check("상세: 누른 줄 높이 근처(또는 화면 아래에 붙음)", dt && (Math.abs(dt.t - (wg.t + rowTop * s)) < 40 * s || dt.b === wg.work.b), `rowTop=${rowTop} detail.t=${dt?.t}`);
   await detail.screenshot({ path: join(outDir, `dpi-${target}-detail.png`) });
   await detail.keyboard.press("Escape");
@@ -159,8 +176,7 @@ try {
     wg && wg.w === Math.round(360 * s0) && wg.r === mon.x + mon.width && wg.t === wg.work.t && wg.b === wg.work.b && wg.work.r === wg.l, JSON.stringify(wg));
   check("   페이지 배율도 따라온다", (await widget.evaluate(() => devicePixelRatio)) === s0);
   await widget.screenshot({ path: join(outDir, `dpi-back-widget.png`) });
-  const pp2 = row.locator(".title-btn").click();
-  await pp2;
+  await clickInWidget(row.locator(".title-btn .t"), wg, s0);
   await sleep(900);
   const dt2 = windowsOf(app.pid).find((w) => w.title === "TODO.md" && w.l < wg.l && w.h <= 660 * s0);
   check("   복귀 뒤 상세 창 물리 폭·간격", dt2 && dt2.w === Math.round(360 * s0) && wg.l - dt2.r === Math.round(6 * s0), JSON.stringify(dt2));

@@ -27,7 +27,7 @@ Partner Center 각 칸에 아래 문구를 복사한다. 과장·미구현 금�
 **주요 기능:**
 - 화면 한쪽에 도킹(모니터·왼쪽/오른쪽 선택) 또는 항상 위에 떠 있기, 폭 조절
 - 한 입력줄 — 프로젝트를 고르고 적고 Enter, 중요도·마감·담당은 선택
-- 프로젝트별 목록 — 진행 → 중요도 → 마감 순 정렬, 끌어서 프로젝트 순서 바꾸기
+- 프로젝트별 목록 — 진행 → 중요도 → 마감 순 정렬, 끌어서 프로젝트 순서 바꾸기, 할 일을 다른 프로젝트로 옮기기
 - 상태 3단계(할 일·진행·완료), 중요도 3단계, 하위 항목 한 단계
 - 시각이 찍히는 메모 기록, 나중에 고치기
 - 마크다운 주간보고 — 복사하거나 .md 로 저장, 템플릿 직접 편집
@@ -59,7 +59,7 @@ The widget reserves one edge of the screen like the taskbar, so even maximized w
 **Features:**
 - Dock to a screen edge (choose monitor and left/right) or float on top; adjustable width
 - One input line — pick a project, type, press Enter; importance, due date and owner are optional
-- Grouped by project — sorted by in-progress → importance → due date; drag to reorder projects
+- Grouped by project — sorted by in-progress → importance → due date; drag to reorder projects; move a to-do to another project
 - Three states (To do · Doing · Done), three importance levels, one level of sub-items
 - Timestamped memo log, editable later
 - Markdown weekly report — copy or save as .md, edit the templates directly
