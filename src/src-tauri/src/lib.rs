@@ -241,15 +241,36 @@ async fn open_report_window(app: AppHandle, title: String) -> Result<(), String>
     }
     // 쿼리(`index.html?view=report`)를 넘기면 `?` 까지 파일 경로로 읽혀 빈 창(about:blank)이 된다.
     // 같은 index.html 을 열고, 이 창이 보고 창이라는 표시를 초기화 스크립트로 심는다(bridge.ts isReportView).
-    WebviewWindowBuilder::new(&app, "report", WebviewUrl::App("index.html".into()))
+    let w = WebviewWindowBuilder::new(&app, "report", WebviewUrl::App("index.html".into()))
         .initialization_script("window.__TODOMD_VIEW__ = 'report';")
         .title(title)
         .inner_size(940.0, 760.0)
         .min_inner_size(420.0, 480.0)
         .center()
+        .visible(false)
         .build()
         .map_err(|e| e.to_string())?;
-    Ok(())
+    // 위젯이 있는 모니터 가운데로(.center() 는 주 모니터). 먼저 그 모니터로 옮기고(배율이 다르면 여기서 논리 크기
+    // 그대로 다시 커진다) → 작업 영역보다 크면 줄이고(1080p·150% 는 논리 920×672 뿐) → 가운데를 잡는다.
+    if let Some((area, scale)) = app
+        .get_webview_window("main")
+        .and_then(|m| m.current_monitor().ok().flatten())
+        .map(|m| (*m.work_area(), m.scale_factor()))
+    {
+        let _ = w.set_position(area.position);
+        let (aw, ah) = (area.size.width as f64 / scale, area.size.height as f64 / scale);
+        if aw < 940.0 + 24.0 || ah < 760.0 + 56.0 {
+            // 제목 줄·테두리 몫을 남긴다
+            let _ = w.set_size(tauri::LogicalSize::new((aw - 24.0).clamp(420.0, 940.0), (ah - 56.0).clamp(480.0, 760.0)));
+        }
+        if let Ok(size) = w.outer_size() {
+            let x = area.position.x + (area.size.width as i32 - size.width as i32).max(0) / 2;
+            let y = area.position.y + (area.size.height as i32 - size.height as i32).max(0) / 2;
+            let _ = w.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+    }
+    w.show().map_err(|e| e.to_string())?;
+    w.set_focus().map_err(|e| e.to_string())
 }
 
 /// 상세 창에 띄울 할 일. 새로 뜬 창은 이벤트를 놓칠 수 있어(아직 듣기 전) 여기서 물어 간다.
@@ -320,8 +341,14 @@ async fn open_detail_window(app: AppHandle, item_id: String, anchor_y: f64) -> R
             w
         }
     };
+    // 두 번 놓는다: 상세 창은 주 모니터에서 만들어진다 → 배율이 다른 모니터로 옮기면 tao 가 WM_DPICHANGED 에서
+    // **논리 크기를 지키려고** 다시 키운다(150% 에서 360 → 540 물리가 810 이 됐다). 같은 모니터로 온 뒤 다시 놓으면 그대로.
     #[cfg(windows)]
-    appbar::place_topmost(w.hwnd().map_err(|e| e.to_string())?.0 as isize, x, y, dw, dh)?;
+    {
+        let h = w.hwnd().map_err(|e| e.to_string())?.0 as isize;
+        appbar::place_topmost(h, x, y, dw, dh)?;
+        appbar::place_topmost(h, x, y, dw, dh)?;
+    }
     w.show().map_err(|e| e.to_string())?;
     w.set_focus().map_err(|e| e.to_string())
 }

@@ -28,6 +28,13 @@ export function activeProjects(data: TodoData): Project[] {
   return [...list.filter((p) => p.id !== INBOX_ID), ...inbox];
 }
 
+/** 상세의 프로젝트 고르기 칸 — 활성 프로젝트(목록 순서). 지금 프로젝트가 보관된 것이면 맨 앞에 그것도(옮길 수는 없다). */
+export function moveTargets(data: TodoData, currentId: string): Project[] {
+  const list = activeProjects(data);
+  const cur = data.projects.find((p) => p.id === currentId);
+  return cur?.archived ? [cur, ...list] : list;
+}
+
 /**
  * 끌어다 놓기·Alt+↑↓ 의 `moveProject.before` 값. `order` = 보이는 활성 순서(미분류 끝).
  * 위로 옮기면 대상 **앞**, 아래로 옮기면 대상 **뒤**(= 그다음 것 앞, 없으면 null = 끝). 흔한 목록 재배열과 같다.

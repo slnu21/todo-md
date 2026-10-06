@@ -27,6 +27,8 @@ export type Action =
   | { type: "restoreProject"; id: string }
   | { type: "addItem"; projectId: string; title: string; importance?: Importance; due?: PlainDate | ""; assignee?: string }
   | { type: "updateItem"; id: string; patch: ItemPatch }
+  /** 다른 프로젝트로 옮기기 — 상태·메모·하위는 그대로. 보관한 프로젝트로는 못 옮긴다(목록에서 안 보이게 되므로). */
+  | { type: "moveItem"; id: string; projectId: string }
   | { type: "setStatus"; id: string; status: Status }
   | { type: "cycleStatus"; id: string }
   | { type: "cycleImportance"; id: string }
@@ -146,6 +148,13 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
         ...(p.due !== undefined ? { due: p.due } : {}),
         ...(p.assignee !== undefined ? { assignee: clean(p.assignee) } : {}),
       }));
+    }
+    case "moveItem": {
+      const target = data.projects.find((p) => p.id === action.projectId);
+      if (!target || target.archived) return data;
+      const it = data.items.find((i) => i.id === action.id);
+      if (!it || it.projectId === action.projectId) return data;
+      return mapItem(data, action.id, (i) => ({ ...i, projectId: action.projectId }));
     }
     case "setStatus":
       return mapItem(data, action.id, (it) => withStatus(it, action.status, ctx.now));

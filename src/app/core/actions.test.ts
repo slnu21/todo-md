@@ -89,6 +89,30 @@ describe("할 일 추가·수정", () => {
   });
 });
 
+describe("다른 프로젝트로 옮기기", () => {
+  it("프로젝트만 바뀌고 상태·시각·메모·하위는 그대로", () => {
+    let d = run(seeded(), { type: "addMemo", itemId: "a", text: "기록" });
+    d = run(d, { type: "addSub", itemId: "a", title: "하위" });
+    const before = item(d, "a");
+    const after = item(run(d, { type: "moveItem", id: "a", projectId: INBOX_ID }), "a");
+    expect(after).toEqual({ ...before, projectId: INBOX_ID });
+  });
+
+  it("미분류에서 프로젝트로", () => {
+    const d = run(run(seeded(), { type: "moveItem", id: "b", projectId: INBOX_ID }), { type: "moveItem", id: "b", projectId: "p1" });
+    expect(item(d, "b").projectId).toBe("p1");
+  });
+
+  it("보관한·없는 프로젝트, 같은 프로젝트, 없는 할 일은 그대로(같은 객체)", () => {
+    const d = seeded();
+    d.projects.unshift({ id: "p9", name: "옛 일", archived: true, archivedAt: "2026-09-01T09:00" });
+    expect(run(d, { type: "moveItem", id: "a", projectId: "p9" })).toBe(d);
+    expect(run(d, { type: "moveItem", id: "a", projectId: "nope" })).toBe(d);
+    expect(run(d, { type: "moveItem", id: "a", projectId: "p1" })).toBe(d);
+    expect(run(d, { type: "moveItem", id: "zz", projectId: INBOX_ID })).toBe(d);
+  });
+});
+
 describe("하위 항목과 메모", () => {
   it("하위 항목은 체크만 한다", () => {
     let d = run(seeded(), { type: "addSub", itemId: "a", title: "MSIX 다시 만들기" });

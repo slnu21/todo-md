@@ -7,11 +7,11 @@ import { useEffect, useState } from "react";
 import type { Action } from "../core/actions";
 import { plainOf } from "../core/date";
 import { resolveLang } from "../core/i18n";
-import { INBOX_ID } from "../core/model";
+import { moveTargets } from "../core/select";
 import { io } from "../io/io";
 import { startClient, type Shared } from "./bridge";
 import { Detail } from "./Detail";
-import { LangContext, useT } from "./ui";
+import { LangContext } from "./ui";
 
 export function DetailApp() {
   const [shared, setShared] = useState<Shared | null>(null);
@@ -51,7 +51,6 @@ export function DetailApp() {
 }
 
 function DetailWindow({ shared, itemId, today, dispatch }: { shared: Shared; itemId: string | null; today: string; dispatch: (a: Action) => void }) {
-  const { t } = useT();
   const item = itemId ? shared.data.items.find((i) => i.id === itemId) : undefined;
   // 지워졌거나 없는 할 일이면 창을 숨긴다.
   useEffect(() => { if (itemId && !item) void io.hideDetail(); }, [itemId, item]);
@@ -61,13 +60,12 @@ function DetailWindow({ shared, itemId, today, dispatch }: { shared: Shared; ite
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   if (!item) return <main className="detail-shell" />;
-  const project = shared.data.projects.find((p) => p.id === item.projectId);
   return (
     <main className="detail-shell">
       <Detail
         key={item.id}
         item={item}
-        projectName={item.projectId === INBOX_ID ? t("inbox.name") : project?.name ?? ""}
+        projects={moveTargets(shared.data, item.projectId)}
         today={today}
         onClose={() => void io.hideDetail()}
         dispatch={dispatch}
