@@ -238,11 +238,16 @@ pub fn set_hidden(hidden: bool) -> Result<(), String> {
     })
 }
 
-fn reapply() {
+/// `fresh` = 예약을 풀고 새로 등록한 뒤 맞춘다(배율·해상도 변경). 셸은 우리 예약을 **바뀌기 전 배율의 사각형**으로
+/// 들고 있다가 QUERYPOS 에서 그 자리를 피해 준다 → 위젯이 자기 폭만큼 안쪽으로 밀려 붙었다(150%↔100%, 2026-10-06).
+fn reapply(fresh: bool) {
     if APPLYING.swap(true, Ordering::SeqCst) {
         return;
     }
     if let Ok(mut st) = STATE.lock() {
+        if fresh {
+            remove_locked(&mut st);
+        }
         let _ = apply_locked(&mut st);
     }
     APPLYING.store(false, Ordering::SeqCst);
@@ -256,7 +261,7 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
         || (callback != 0 && msg == callback && wp.0 as u32 == ABN_POSCHANGED);
     let r = DefSubclassProc(hwnd, msg, wp, lp);
     if relevant {
-        reapply();
+        reapply(msg == WM_DPICHANGED || msg == WM_DISPLAYCHANGE);
     }
     r
 }
