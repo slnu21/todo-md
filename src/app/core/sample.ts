@@ -1,5 +1,6 @@
 /**
  * 예시 데이터 — 스크린샷·e2e·데모용(`?seed=sample`, `TODOMD_SEED=sample`). 제품 화면에서 자동으로 넣지 않는다.
+ * 첫 화면 안내의 '예시로 둘러보기'는 사용자가 누를 때만 `withSample` 로 넣고, `withoutSample` 로 한 번에 뺀다.
  * 날짜는 `today` 기준 상대값이라 언제 열어도 지남·오늘·내일이 고르게 보인다(목업 예시와 같은 구성).
  * 글은 언어별(영어 UI 스크린샷에 한글 할 일이 섞이지 않게) — 구성(상태·날짜·하위·메모 수)은 두 언어가 같다.
  */
@@ -83,5 +84,46 @@ export function sampleData(today: PlainDate, lang: Lang = "ko"): TodoData {
       item({ projectId: INBOX_ID, title: x.checkup, due: day(9) }),
     ],
     report: null,
+  };
+}
+
+/**
+ * 둘러보기로 넣은 예시의 id 머리. 사용자 id(store `newId` — 시각 36진)는 이 꼴이 나오지 않는다.
+ * 표식을 파일 스키마에 따로 두지 않는다 — id 만으로 가려지면 version 을 올릴 일이 없다.
+ */
+export const SAMPLE_PREFIX = "ex-";
+const isEx = (id: string) => id.startsWith(SAMPLE_PREFIX);
+
+/** 예시가 들어 있나 — 프로젝트나 할 일 하나라도. */
+export const hasSample = (data: TodoData): boolean => data.projects.some((p) => isEx(p.id)) || data.items.some((i) => isEx(i.id));
+
+/**
+ * 할 일이 하나도 없을 때만 예시를 넣는다(이미 쓰는 사람의 목록에 섞이지 않게). 사용자가 만든 프로젝트는 그대로 두고
+ * 예시 프로젝트는 '미분류' 바로 앞에. 미분류 할 일은 미분류로. 보고 프로필은 건드리지 않는다.
+ */
+export function withSample(data: TodoData, sample: TodoData): TodoData {
+  if (data.items.length > 0 || hasSample(data)) return data;
+  const ex = (id: string) => (id === INBOX_ID ? id : SAMPLE_PREFIX + id);
+  const projects = sample.projects.filter((p) => p.id !== INBOX_ID).map((p) => ({ ...p, id: ex(p.id) }));
+  const at = data.projects.findIndex((p) => p.id === INBOX_ID);
+  const items = sample.items.map((i) => ({
+    ...i,
+    id: ex(i.id),
+    projectId: ex(i.projectId),
+    subs: i.subs.map((s) => ({ ...s, id: ex(s.id) })),
+    memos: i.memos.map((m) => ({ ...m, id: ex(m.id) })),
+  }));
+  const all = [...data.projects];
+  all.splice(at < 0 ? all.length : at, 0, ...projects);
+  return { ...data, projects: all, items };
+}
+
+/** 예시 프로젝트와 그 안의 할 일(사용자가 그 안에 넣은 것 포함), 미분류에 넣은 예시 할 일을 뺀다. */
+export function withoutSample(data: TodoData): TodoData {
+  if (!hasSample(data)) return data;
+  return {
+    ...data,
+    projects: data.projects.filter((p) => !isEx(p.id)),
+    items: data.items.filter((i) => !isEx(i.id) && !isEx(i.projectId)),
   };
 }

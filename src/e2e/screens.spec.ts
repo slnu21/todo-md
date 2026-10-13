@@ -118,6 +118,18 @@ test.describe("screens", () => {
   test("빈 상태(첫 실행)", async ({ page }) => {
     await fresh(page, "/");
     await shot(page, "09-empty");
+    await page.getByRole("button", { name: "예시로 둘러보기" }).click();
+    await shot(page, "09b-example");
+  });
+
+  test("빈 상태(첫 실행) — 다크 + 영어 + 좁은 폭 300", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.setViewportSize({ width: 300, height: 900 });
+    await fresh(page, "/");
+    await page.getByRole("button", { name: /설정/ }).click();
+    await page.getByRole("button", { name: "English" }).click();
+    await page.keyboard.press("Escape");
+    await shot(page, "09c-empty-en-dark-300");
   });
 
   test("찾기 — 완료 기록 · 검색 결과 · 다크", async ({ page }) => {

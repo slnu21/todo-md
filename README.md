@@ -20,13 +20,14 @@
 
 ## 주요 기능
 
+- **첫 화면 안내** — 할 일이 없을 때 사용법 네 줄과 '예시로 둘러보기'. 예시는 위쪽 띠의 '예시 지우기'로 한 번에 지웁니다.
 - **세로 위젯 · 도킹** — 작업 표시줄처럼 화면 한쪽을 차지해 다른 창이 덮지 않습니다. 모니터와 왼쪽·오른쪽을 고르고, 높이는 늘 작업 영역 전체. 떠 있기 모드와 폭 조절(300~440px)도 있습니다.
 - **트레이 · 자동 실행** — 트레이 아이콘으로 보이기/숨기기, 로그인 시 자동 실행(설정에서 켬).
 - **한 입력줄** — 프로젝트를 고르고 적고 Enter. 고른 프로젝트는 그대로 남아 연달아 적을 수 있습니다. 외울 문법이 없습니다.
 - **프로젝트별 목록** — 프로젝트가 소제목, 그 아래 할 일. 진행 → 중요도 → 마감 순으로 정렬됩니다. 소제목을 끌어 프로젝트 순서를 바꾸고(Alt+↑↓), 두 번 눌러 이름을 바꿉니다.
 - **상태 3단계** — 동그라미를 누를 때마다 할 일 → 진행 → 완료. 진행 중인 일에는 형광펜이 그어집니다.
 - **중요도 3단계 · 마감일 · 담당 · 하위 항목(한 단계)**
-- **메모 기록** — 할 일을 누르면 위젯 옆에 상세 창이 뜹니다. Enter 마다 한 줄, 적은 날짜와 시각이 자동으로 붙습니다. 적은 메모는 고칠 수 있습니다(시각은 그대로). 상세 창 위쪽의 프로젝트 이름을 눌러 다른 프로젝트로 옮깁니다(메모·하위 항목도 함께).
+- **메모 기록** — 할 일을 누르면 위젯 옆에 상세 창이 뜹니다. Enter 마다 한 줄, 적은 날짜와 시각이 자동으로 붙습니다. 적은 메모와 하위 항목은 ✎ 로 고칠 수 있습니다(메모 시각은 그대로). 상세 창 위쪽의 프로젝트 이름을 눌러 다른 프로젝트로 옮깁니다(메모·하위 항목도 함께).
 - **찾기 · 지난 완료** — 제목·메모·하위 항목·담당에서 찾습니다(Ctrl+F). 검색어를 비우면 완료한 일 기록, 30일 지난 완료(보관 파일)까지 볼 수 있습니다.
 - **작은 달력** — 마감이 있는 날에 점, 한국 공휴일 표시. 날짜를 누르면 그날 마감만 보입니다.
 - **프로젝트 보관** — 끝난 프로젝트는 보관해 목록에서 치우고, 언제든 되돌립니다.
@@ -77,13 +78,14 @@ Download a zip from [Releases](https://github.com/slnu21/todo-md/releases), unpa
 
 ## Features
 
+- **First-run guide** — with no to-dos you get four lines on how it works and "Explore with examples". Clear the examples in one go from the strip at the top.
 - **Tall widget · docking** — reserves one edge of the screen like the taskbar, so other windows never cover it. Pick the monitor and left or right edge; the height always fills the work area. Float mode and width (300–440 px) too.
 - **Tray · launch at sign-in** — show or hide from the tray icon; launch at sign-in (turn on in Settings).
 - **One input line** — pick a project, type, press Enter. The project stays selected so you can keep typing. No syntax to memorize.
 - **Grouped by project** — projects are headings with their to-dos underneath, sorted by in-progress → importance → due date. Drag a heading to reorder projects (Alt+↑↓), double-click it to rename.
 - **Three states** — each click on the circle moves To do → Doing → Done. Doing items get a highlighter stroke.
 - **Importance (3 levels) · due date · owner · one level of sub-items**
-- **Memo log** — click a to-do and its details open beside the widget. One line per Enter, stamped with the date and time. Memos can be edited later (the time stays). Click the project name at the top of the details to move the to-do to another project (memos and sub-items go with it).
+- **Memo log** — click a to-do and its details open beside the widget. One line per Enter, stamped with the date and time. Memos and sub-items can be edited with ✎ (a memo's time stays). Click the project name at the top of the details to move the to-do to another project (memos and sub-items go with it).
 - **Find · past completions** — search titles, memos, sub-items and owners (Ctrl+F). With an empty search you see what you completed, including completions older than 30 days (archive files).
 - **Mini calendar** — dots on days with due items, Korean public holidays. Click a day to see only what is due then.
 - **Archive projects** — tidy finished projects away and restore them any time.

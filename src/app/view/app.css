@@ -178,6 +178,15 @@ li.item { border-bottom: 1px solid var(--border); }
 .line-in::placeholder { color: var(--faint); }
 .done-toggle { margin-top: 6px; font-size: 12px; }
 .empty { color: var(--faint); font-size: 13px; padding: 20px 4px; text-align: center; }
+/* 첫 실행 안내 — 할 일이 하나도 없을 때만. 예시 띠는 예시를 지울 때까지 맨 위. */
+.guide { margin: 16px 2px 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 13px; }
+.guide h4 { margin: 0 0 6px; font-size: 13px; }
+.guide ol { margin: 0 0 12px; padding-left: 18px; color: var(--muted); line-height: 1.55; display: flex; flex-direction: column; gap: 3px; }
+.guide button { display: block; width: 100%; padding: 7px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; cursor: pointer; }
+.guide small { display: block; margin-top: 6px; color: var(--faint); font-size: 11.5px; text-align: center; }
+.ex-banner { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 0; padding: 4px 9px; border-radius: 5px; background: var(--hl); color: var(--fg); font-size: 12.5px; }
+.ex-banner .textbtn { color: var(--fg); flex: none; }
+.ex-banner .textbtn.armed { color: var(--red); font-weight: 600; }
 .archive-box { margin-top: 18px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
 .archive-box ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .archive-box li { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
