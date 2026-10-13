@@ -8,6 +8,7 @@ import { NEXT_STATUS } from "../core/actions";
 import { dateOfStamp, timeOfStamp, type PlainDate } from "../core/date";
 import { mdLabel, type Key } from "../core/i18n";
 import { INBOX_ID, type Item, type Project, type TodoData } from "../core/model";
+import { hasSample, sampleData } from "../core/sample";
 import { activeProjects, archivedRows, dueInfo, dueOnCount, isYesterday, lastMemo, listGroups, moveBefore, openCount } from "../core/select";
 import { Bars, StatusIcon, useT } from "./ui";
 
@@ -30,6 +31,7 @@ export function ItemList({
   const [confirming, setConfirming] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [armClear, setArmClear] = useState(false);
   /** 끌고 있는 프로젝트와 지금 놓일 자리 표시(위로 = 대상 앞 줄, 아래로 = 대상 뒤 줄). */
   const [drag, setDrag] = useState<{ id: string; over: string | null } | null>(null);
 
@@ -62,6 +64,23 @@ export function ItemList({
 
   return (
     <div className="w-list" data-testid="list">
+      {hasSample(data) && (
+        <div className="ex-banner" role="status">
+          <span>{t("ex.banner")}</span>
+          <button
+            type="button"
+            className={"textbtn" + (armClear ? " armed" : "")}
+            onClick={() => {
+              if (!armClear) { setArmClear(true); return; }
+              dispatch({ type: "clearSample" });
+              setArmClear(false);
+            }}
+            onBlur={() => setArmClear(false)}
+          >
+            {armClear ? t("ex.confirm") : t("ex.clear")}
+          </button>
+        </div>
+      )}
       {selDate && (
         <div className="filter">
           <span>{t("list.filter", { date: mdLabel(lang, selDate), n: dueOnCount(data, selDate) })}</span>
@@ -176,7 +195,21 @@ export function ItemList({
         </section>
       ))}
       {selDate && groups.length === 0 && <p className="empty">{t("list.emptyDay")}</p>}
-      {!selDate && noItems && <p className="empty">{t("list.emptyAll")}</p>}
+      {!selDate && data.items.length === 0 && (
+        // 할 일이 하나도 없을 때(첫 실행)만 — 다 끝내서 비었을 땐 아래 한 줄로 충분하다.
+        <div className="guide" data-testid="guide">
+          <h4>{t("guide.title")}</h4>
+          <ol>
+            <li>{t("guide.add")}</li>
+            <li>{t("guide.status")}</li>
+            <li>{t("guide.detail")}</li>
+            <li>{t("guide.report")}</li>
+          </ol>
+          <button type="button" onClick={() => dispatch({ type: "addSample", sample: sampleData(today, lang) })}>{t("guide.try")}</button>
+          <small>{t("guide.tryHint")}</small>
+        </div>
+      )}
+      {!selDate && noItems && data.items.length > 0 && <p className="empty">{t("list.emptyAll")}</p>}
       {archived.length > 0 && !selDate && (
         <div className="archive-box">
           <span>{t("arc.title", { n: archived.length })}</span>{" "}

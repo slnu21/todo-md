@@ -10,6 +10,7 @@
 import type { LocalStamp, PlainDate } from "./date";
 import { INBOX_ID, type Importance, type Item, type Status, type TodoData } from "./model";
 import type { ReportRules } from "./report";
+import { withoutSample, withSample } from "./sample";
 
 export interface Ctx {
   now: LocalStamp;
@@ -42,7 +43,10 @@ export type Action =
   /** 글만 고친다 — 적은 시각(`at`)은 기록이라 그대로. */
   | { type: "editMemo"; itemId: string; memoId: string; text: string }
   | { type: "deleteMemo"; itemId: string; memoId: string }
-  | { type: "setReport"; rules: ReportRules | null };
+  | { type: "setReport"; rules: ReportRules | null }
+  /** 첫 화면 '예시로 둘러보기' — `sample` 은 화면이 오늘·언어로 만든 `sampleData`. 할 일이 없을 때만 들어간다. */
+  | { type: "addSample"; sample: TodoData }
+  | { type: "clearSample" };
 
 export const NEXT_STATUS: Record<Status, Status> = { todo: "doing", doing: "done", done: "todo" };
 
@@ -203,5 +207,9 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
       return mapItem(data, action.itemId, (it) => ({ ...it, memos: it.memos.filter((m) => m.id !== action.memoId) }));
     case "setReport":
       return { ...data, report: action.rules };
+    case "addSample":
+      return withSample(data, action.sample);
+    case "clearSample":
+      return withoutSample(data);
   }
 }

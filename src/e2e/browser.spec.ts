@@ -428,6 +428,56 @@ test("달력: 날짜를 누르면 그날 마감만 + 새 입력 마감일이 그
   await expect(page.locator("li.item").first()).toBeVisible();
 });
 
+test("첫 화면 안내 — 예시로 둘러보기 → 예시 띠 → 두 번 눌러 지우면 내 것만 남고 안내가 돌아온다", async ({ page }) => {
+  await fresh(page);
+  const guide = page.getByTestId("guide");
+  await expect(guide).toBeVisible();
+  await expect(guide.locator("li")).toHaveCount(4);
+
+  await guide.getByRole("button", { name: "예시로 둘러보기" }).click();
+  await expect(guide).toHaveCount(0);
+  const banner = page.locator(".ex-banner");
+  await expect(banner).toContainText("예시 데이터를 보고 있습니다");
+  await expect(row(page, "Store 재제출")).toBeVisible();
+
+  // 예시 프로젝트에 넣은 것은 예시와 함께 지워지고, 미분류에 넣은 내 것은 남는다.
+  await page.getByLabel("프로젝트").selectOption({ label: "미분류" });
+  await titleInput(page).fill("내 할 일");
+  await titleInput(page).press("Enter");
+
+  // 새로 읽어도 예시·띠가 남아 있다(저장됨).
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(banner).toBeVisible();
+
+  // 한 번 = 묻기, 바깥으로 빠지면 풀린다, 두 번 = 지우기.
+  await banner.getByRole("button", { name: "예시 지우기" }).click();
+  await expect(banner.getByRole("button")).toHaveText("한 번 더 누르면 지움");
+  await titleInput(page).click();
+  await expect(banner.getByRole("button")).toHaveText("예시 지우기");
+  await banner.getByRole("button").click();
+  await banner.getByRole("button").click();
+  await expect(banner).toHaveCount(0);
+  await expect(page.locator("li.item .t")).toHaveText(["내 할 일"]);
+  await expect(page.locator("section.group h3")).toHaveText(["미분류"]);
+  await expect(guide).toHaveCount(0); // 내 할 일이 있으니 안내는 없다
+
+  // 마지막 할 일까지 지우면 안내가 돌아온다.
+  await row(page, "내 할 일").click();
+  await page.getByRole("button", { name: "할 일 삭제" }).click();
+  await page.getByRole("button", { name: "한 번 더 누르면 삭제" }).click();
+  await expect(guide).toBeVisible();
+});
+
+test("첫 화면 안내 — 영어 UI 면 예시도 영어", async ({ page }) => {
+  await fresh(page);
+  await page.getByRole("button", { name: /설정/ }).click();
+  await page.getByRole("button", { name: "English" }).click();
+  await page.keyboard.press("Escape");
+  await page.getByTestId("guide").getByRole("button", { name: "Explore with examples" }).click();
+  await expect(row(page, "Resubmit to Store")).toBeVisible();
+});
+
 test("새 프로젝트를 입력줄에서 만들면 바로 선택된다", async ({ page }) => {
   await fresh(page);
   await page.getByLabel("프로젝트").selectOption({ label: "＋ 새 프로젝트" });
