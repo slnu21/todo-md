@@ -29,11 +29,12 @@ export function Detail({
   const [owner, setOwner] = useState(item.assignee);
   const [armDelete, setArmDelete] = useState(false);
   const [editingMemo, setEditingMemo] = useState<string | null>(null);
+  const [editingSub, setEditingSub] = useState<string | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // 다른 할 일로 바뀌면 편집 중 값을 새로 받는다.
-  useEffect(() => { setTitle(item.title); setOwner(item.assignee); setArmDelete(false); setEditingMemo(null); }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setTitle(item.title); setOwner(item.assignee); setArmDelete(false); setEditingMemo(null); setEditingSub(null); }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const el = titleRef.current;
     if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
@@ -131,11 +132,31 @@ export function Detail({
           <h4><span>{t("pp.subs")}</span><span>{doneSubs}/{item.subs.length}</span></h4>
           {item.subs.map((s) => (
             <div key={s.id} className={"sub" + (s.done ? " done" : "")}>
-              <label>
-                <input type="checkbox" checked={s.done} onChange={(e) => dispatch({ type: "toggleSub", itemId: item.id, subId: s.id, done: e.target.checked })} />
-                <span>{s.title}</span>
-              </label>
-              <button type="button" className="x" aria-label={t("sub.delAria")} onClick={() => dispatch({ type: "deleteSub", itemId: item.id, subId: s.id })}>×</button>
+              {editingSub === s.id ? (
+                // 고치는 동안엔 label 로 감싸지 않는다 — 입력칸을 누르다 체크가 바뀌지 않게.
+                <div className="sub-edit">
+                  <input type="checkbox" checked={s.done} onChange={(e) => dispatch({ type: "toggleSub", itemId: item.id, subId: s.id, done: e.target.checked })} />
+                  <LineEdit
+                    initial={s.title}
+                    ariaLabel={t("sub.editInput")}
+                    onDone={(title) => {
+                      if (title !== null) dispatch({ type: "editSub", itemId: item.id, subId: s.id, title });
+                      setEditingSub(null);
+                    }}
+                  />
+                </div>
+              ) : (
+                <label>
+                  <input type="checkbox" checked={s.done} onChange={(e) => dispatch({ type: "toggleSub", itemId: item.id, subId: s.id, done: e.target.checked })} />
+                  <span>{s.title}</span>
+                </label>
+              )}
+              <span className="m-acts">
+                {editingSub !== s.id && (
+                  <button type="button" className="x" aria-label={t("sub.editAria")} title={t("sub.editAria")} onClick={() => setEditingSub(s.id)}>✎</button>
+                )}
+                <button type="button" className="x" aria-label={t("sub.delAria")} onClick={() => dispatch({ type: "deleteSub", itemId: item.id, subId: s.id })}>×</button>
+              </span>
             </div>
           ))}
           <LineInput placeholder={t("sub.ph")} onEnter={(v) => dispatch({ type: "addSub", itemId: item.id, title: v })} />
@@ -153,8 +174,9 @@ export function Detail({
                   <li key={m.id} className="m">
                     <time dateTime={m.at}>{timeOfStamp(m.at)}</time>
                     {editingMemo === m.id ? (
-                      <MemoEdit
+                      <LineEdit
                         initial={m.text}
+                        ariaLabel={t("memo.editInput")}
                         onDone={(text) => {
                           if (text !== null) dispatch({ type: "editMemo", itemId: item.id, memoId: m.id, text });
                           setEditingMemo(null);
@@ -203,11 +225,10 @@ export function Detail({
 }
 
 /**
- * 메모 한 줄 고치기 — 줄바꿈되는 입력칸(메모는 길 수 있다). Enter·바깥 클릭 = 저장, Esc = 취소(`null`).
- * 한글 조합 중 Enter 는 무시. 적은 시각은 그대로(기록이라서 — reduce `editMemo`).
+ * 메모·하위 항목 한 줄 고치기 — 줄바꿈되는 입력칸(길 수 있다). Enter·바깥 클릭 = 저장, Esc = 취소(`null`).
+ * 한글 조합 중 Enter 는 무시. 메모의 적은 시각은 그대로(기록이라서 — reduce `editMemo`).
  */
-function MemoEdit({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
-  const { t } = useT();
+function LineEdit({ initial, ariaLabel, onDone }: { initial: string; ariaLabel: string; onDone: (v: string | null) => void }) {
   const [v, setV] = useState(initial);
   const ref = useRef<HTMLTextAreaElement>(null);
   const done = useRef(false);
@@ -225,7 +246,7 @@ function MemoEdit({ initial, onDone }: { initial: string; onDone: (v: string | n
       ref={ref}
       className="memo-edit"
       rows={1}
-      aria-label={t("memo.editInput")}
+      aria-label={ariaLabel}
       value={v}
       autoFocus
       onFocus={(e) => { const n = e.currentTarget.value.length; e.currentTarget.setSelectionRange(n, n); }}

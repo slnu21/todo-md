@@ -129,6 +129,8 @@ const ko = {
   "memo.editAria": "이 메모 고치기",
   "memo.editInput": "메모 고치기 — Enter 저장, Esc 취소",
   "sub.delAria": "이 하위 항목 지우기",
+  "sub.editAria": "이 하위 항목 고치기",
+  "sub.editInput": "하위 항목 고치기 — Enter 저장, Esc 취소",
 
   "err.notJson": "할 일 파일을 읽지 못했습니다(형식이 깨졌습니다). 덮어쓰지 않도록 저장을 멈췄습니다. 데이터 폴더의 todo.json.bak1~3 에서 되살릴 수 있습니다.",
   "err.newerVersion": "더 새 버전의 TODO.md 가 만든 파일입니다. 덮어쓰지 않도록 저장을 멈췄습니다. 앱을 업데이트하세요.",
@@ -348,6 +350,8 @@ const en: Record<Key, string> = {
   "memo.editAria": "Edit this memo",
   "memo.editInput": "Edit memo — Enter to save, Esc to cancel",
   "sub.delAria": "Delete this sub-item",
+  "sub.editAria": "Edit this sub-item",
+  "sub.editInput": "Edit sub-item — Enter to save, Esc to cancel",
 
   "err.notJson": "The to-do file could not be read (it is damaged). Saving is paused so nothing is overwritten. You can restore it from todo.json.bak1–3 in the data folder.",
   "err.newerVersion": "This file was written by a newer TODO.md. Saving is paused so nothing is overwritten. Please update the app.",
