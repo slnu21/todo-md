@@ -35,6 +35,8 @@ export type Action =
   | { type: "deleteItem"; id: string }
   | { type: "addSub"; itemId: string; title: string }
   | { type: "toggleSub"; itemId: string; subId: string; done: boolean }
+  /** 제목만 고친다 — 체크 상태·순서는 그대로. */
+  | { type: "editSub"; itemId: string; subId: string; title: string }
   | { type: "deleteSub"; itemId: string; subId: string }
   | { type: "addMemo"; itemId: string; text: string }
   /** 글만 고친다 — 적은 시각(`at`)은 기록이라 그대로. */
@@ -176,6 +178,13 @@ export function reduce(data: TodoData, action: Action, ctx: Ctx): TodoData {
         ...it,
         subs: it.subs.map((s) => (s.id === action.subId ? { ...s, done: action.done } : s)),
       }));
+    case "editSub": {
+      const title = clean(action.title);
+      const sub = data.items.find((i) => i.id === action.itemId)?.subs.find((s) => s.id === action.subId);
+      // 빈 제목으로 고치기 = 지우기가 아니다(지우기는 ×). 같은 제목·없는 하위도 그대로.
+      if (!title || !sub || sub.title === title) return data;
+      return mapItem(data, action.itemId, (it) => ({ ...it, subs: it.subs.map((s) => (s.id === action.subId ? { ...s, title } : s)) }));
+    }
     case "deleteSub":
       return mapItem(data, action.itemId, (it) => ({ ...it, subs: it.subs.filter((s) => s.id !== action.subId) }));
     case "addMemo": {

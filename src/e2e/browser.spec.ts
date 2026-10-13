@@ -183,6 +183,54 @@ test("프로젝트 이름 바꾸기 — 버튼·두 번 누르기, Enter/바깥 
   await expect(inbox.getByLabel("프로젝트 이름 — Enter 저장, Esc 취소")).toHaveCount(0);
 });
 
+test("하위 고치기 — ✎, Enter/바깥 = 저장, Esc = 취소(상세는 안 닫힘), 체크·순서는 그대로", async ({ page }) => {
+  await fresh(page, "/?seed=sample");
+  await page.getByRole("button", { name: /Store 재제출/ }).click();
+  const detail = page.getByTestId("detail");
+  const subs = detail.locator(".pp-sec .sub");
+  const input = detail.getByLabel("하위 항목 고치기 — Enter 저장, Esc 취소");
+  const titles = () => subs.allInnerTexts().then((a) => a.map((s) => s.replace(/[✎×]/g, "").trim()));
+
+  const first = subs.first();
+  await first.hover();
+  await first.getByRole("button", { name: "이 하위 항목 고치기" }).click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("버전 1.37.0 올리기");
+  await input.fill("버전 1.38.0 올리기");
+  await input.press("Enter");
+  expect(await titles()).toEqual(["버전 1.38.0 올리기", "MSIX 다시 만들기", "Partner Center 업로드"]);
+  await expect(first.getByRole("checkbox")).toBeChecked(); // 체크는 그대로
+
+  // 입력칸을 눌러도 체크가 바뀌지 않는다. Esc = 취소, 상세 창은 그대로.
+  const second = subs.nth(1);
+  await second.hover();
+  await second.getByRole("button", { name: "이 하위 항목 고치기" }).click();
+  await input.click();
+  await input.fill("버릴 글");
+  await input.press("Escape");
+  await expect(detail).toBeVisible();
+  await expect(second.getByRole("checkbox")).not.toBeChecked();
+  expect(await titles()).toEqual(["버전 1.38.0 올리기", "MSIX 다시 만들기", "Partner Center 업로드"]);
+
+  // 빈 제목은 원래대로(지우기는 × 로만). 바깥 클릭 = 저장.
+  await second.hover();
+  await second.getByRole("button", { name: "이 하위 항목 고치기" }).click();
+  await input.fill("  ");
+  await input.press("Enter");
+  expect(await titles()).toEqual(["버전 1.38.0 올리기", "MSIX 다시 만들기", "Partner Center 업로드"]);
+  await second.hover();
+  await second.getByRole("button", { name: "이 하위 항목 고치기" }).click();
+  await input.fill("MSIX 서명까지");
+  await detail.locator(".pp-sec h4").first().click();
+  expect(await titles()).toEqual(["버전 1.38.0 올리기", "MSIX 서명까지", "Partner Center 업로드"]);
+
+  // 새로 읽어도 남아 있다(저장됨).
+  await page.waitForTimeout(700);
+  await page.reload();
+  await page.getByRole("button", { name: /Store 재제출/ }).click();
+  expect(await titles()).toEqual(["버전 1.38.0 올리기", "MSIX 서명까지", "Partner Center 업로드"]);
+});
+
 test("메모 고치기 — ✎·두 번 누르기, Enter/바깥 = 저장, Esc = 취소(상세는 안 닫힘), 시각은 그대로", async ({ page }) => {
   await fresh(page, "/?seed=sample");
   await page.getByRole("button", { name: /Store 재제출/ }).click();

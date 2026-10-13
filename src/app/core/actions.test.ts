@@ -122,6 +122,23 @@ describe("하위 항목과 메모", () => {
     d = run(d, { type: "deleteSub", itemId: "a", subId: "id1" });
     expect(item(d, "a").subs).toEqual([]);
   });
+  it("하위 고치기 — 제목만 바뀌고 체크·순서는 그대로", () => {
+    let d = run(seeded(), { type: "addSub", itemId: "a", title: "MSIX" });
+    d = reduce(d, { type: "addSub", itemId: "a", title: "서명" }, { now: "2026-09-28T09:00", newId: () => "s2" });
+    d = run(d, { type: "toggleSub", itemId: "a", subId: "id1", done: true });
+    const e = run(d, { type: "editSub", itemId: "a", subId: "id1", title: "  MSIX\n 다시 만들기 " });
+    expect(item(e, "a").subs).toEqual([
+      { id: "id1", title: "MSIX 다시 만들기", done: true },
+      { id: "s2", title: "서명", done: false },
+    ]);
+  });
+  it("하위 고치기 — 빈 제목·같은 제목·없는 하위는 그대로(같은 객체)", () => {
+    const d = run(seeded(), { type: "addSub", itemId: "a", title: "MSIX" });
+    expect(run(d, { type: "editSub", itemId: "a", subId: "id1", title: "  " })).toBe(d);
+    expect(run(d, { type: "editSub", itemId: "a", subId: "id1", title: " MSIX " })).toBe(d);
+    expect(run(d, { type: "editSub", itemId: "a", subId: "nope", title: "x" })).toBe(d);
+    expect(run(d, { type: "editSub", itemId: "nope", subId: "id1", title: "x" })).toBe(d);
+  });
   it("메모는 적은 시각이 붙고, 뒤에 쌓인다(오래된 것이 앞)", () => {
     let d = run(seeded(), { type: "addMemo", itemId: "a", text: "매니페스트 머지" }, "2026-09-26T10:05");
     d = run(d, { type: "addMemo", itemId: "a", text: "서명\n경고" }, "2026-09-27T16:40");
