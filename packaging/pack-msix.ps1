@@ -30,10 +30,28 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $tauri = Join-Path $root 'src\src-tauri'
+$out = Join-Path $root 'release'
+$stage = Join-Path $out 'msix-stage'
+
+# SAFETY: only ever touch OUR test registration (installed in place from release\msix-stage).
+# A package with the same identity installed anywhere else (Store, App Installer -> WindowsApps) is the user's
+# real app. Removing a package deletes its data folder (%LOCALAPPDATA%\Packages\<family>) - never do that.
+# (2026-11-21: -Unregister removed an installed 0.6.0 Store build. It had no data, but it could have.)
+function Test-OurRegistration($p) {
+    $loc = [string]$p.InstallLocation
+    return $p.IsDevelopmentMode -and $loc -and ($loc.TrimEnd('\') -ieq $stage.TrimEnd('\'))
+}
+$existing = @(Get-AppxPackage -Name $IdentityName)
+$foreign = @($existing | Where-Object { -not (Test-OurRegistration $_) })
+if (($Register -or $Unregister) -and $foreign.Count -gt 0) {
+    throw ("$IdentityName is INSTALLED on this PC ($($foreign[0].PackageFullName) at $($foreign[0].InstallLocation)) - " +
+        "that is a real install, not the test registration. Refusing to register/unregister so its data is not deleted. " +
+        "Test on another PC/user, or uninstall it yourself (Settings > Apps) after exporting your data.")
+}
 
 if ($Unregister) {
-    $p = Get-AppxPackage -Name $IdentityName
-    if ($p) { Remove-AppxPackage -Package $p.PackageFullName; Write-Output "unregistered: $($p.PackageFullName)" }
+    $p = $existing | Select-Object -First 1
+    if ($p) { Remove-AppxPackage -Package $p.PackageFullName; Write-Output "unregistered (test registration): $($p.PackageFullName)" }
     else { Write-Output "not registered: $IdentityName" }
     return
 }
@@ -63,10 +81,8 @@ $makeappx = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\mak
 if (-not $makeappx) { throw 'makeappx.exe not found (install the Windows SDK).' }
 
 # 4) stage: exe + assets + manifest (+ license texts so they travel with the app)
-$out = Join-Path $root 'release'
-$stage = Join-Path $out 'msix-stage'
 if (Test-Path $stage) {
-    if ($Register -and (Get-AppxPackage -Name $IdentityName)) { throw "$IdentityName is registered from $stage - run -Unregister first." }
+    if ($Register -and $existing.Count -gt 0) { throw "$IdentityName test registration is still active from $stage - run -Unregister first." }
     Remove-Item $stage -Recurse -Force
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Assets') | Out-Null
@@ -95,6 +111,7 @@ Write-Output "MSIX: $msix ($mb MB)  version=$ver4 identity=$IdentityName publish
 if ($Register) {
     Add-AppxPackage -Register (Join-Path $stage 'AppxManifest.xml')
     $p = Get-AppxPackage -Name $IdentityName
+    if (-not $p -or -not (Test-OurRegistration $p)) { throw "registration check failed - expected a development registration from $stage" }
     Write-Output "registered: $($p.PackageFullName)  family=$($p.PackageFamilyName)"
     Write-Output "launch: explorer.exe shell:AppsFolder\$($p.PackageFamilyName)!TodoMd"
 }
