@@ -10,7 +10,7 @@ import { Bars, IMPORTANCES, Seg, useT } from "./ui";
 const NEW = "__new";
 
 export function QuickInput({
-  projects, projectId, onProject, selDate, onAdd, onCreateProject,
+  projects, projectId, onProject, selDate, onAdd, onCreateProject, autoFocus,
 }: {
   projects: Project[];
   projectId: string;
@@ -18,6 +18,8 @@ export function QuickInput({
   selDate: PlainDate | "";
   onAdd: (a: { projectId: string; title: string; importance: Importance; due: PlainDate | ""; assignee: string }) => void;
   onCreateProject: (name: string) => string | null;
+  /** 처음 그릴 때 제목 칸에 포커스(숨김 모드에서 '할 일 추가'를 눌러 펼친 경우). */
+  autoFocus?: boolean;
 }) {
   const { t } = useT();
   const [title, setTitle] = useState("");
@@ -31,6 +33,7 @@ export function QuickInput({
 
   useEffect(() => setDue(selDate), [selDate]);
   useEffect(() => { if (creating) newRef.current?.focus(); }, [creating]);
+  useEffect(() => { if (autoFocus) titleRef.current?.focus(); }, [autoFocus]);
 
   const current = projects.some((p) => p.id === projectId) ? projectId : projects[0]?.id ?? INBOX_ID;
   const name = (p: Project) => (p.id === INBOX_ID ? t("inbox.name") : p.name);

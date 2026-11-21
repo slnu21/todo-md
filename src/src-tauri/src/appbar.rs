@@ -12,34 +12,66 @@ use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use windows::core::{BOOL, PCWSTR};
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW};
 use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::Shell::{
-    DefSubclassProc, SHAppBarMessage, SetWindowSubclass, ABE_LEFT, ABE_RIGHT, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE,
-    ABM_SETPOS, ABN_POSCHANGED, APPBARDATA,
+    DefSubclassProc, SHAppBarMessage, SHQueryUserNotificationState, SetWindowSubclass, ABE_LEFT, ABE_RIGHT, ABM_NEW,
+    ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, ABN_POSCHANGED, APPBARDATA, QUNS_ACCEPTS_NOTIFICATIONS, QUNS_APP,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    RegisterWindowMessageW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_SHOWWINDOW, WM_ACTIVATE,
-    WM_DISPLAYCHANGE, WM_DPICHANGED, WM_SETTINGCHANGE,
+    GetCursorPos, GetWindowRect, RegisterWindowMessageW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_SHOWWINDOW,
+    WM_ACTIVATE, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_SETTINGCHANGE,
 };
 
 const MONITORINFOF_PRIMARY: u32 = 1;
 const SPI_SETWORKAREA: usize = 0x002F;
-/// 떠 있기 모드에서 가장자리와 띄우는 거리(논리 px).
+/// 떠 있기 모드에서 가장자리와 띄우는 거리(논리 px). 숨김 모드의 위·아래 여백도 같은 값.
 const FLOAT_GAP: f64 = 12.0;
+/// 숨김 모드 폭(고정, 논리 px) — app/core/settings.ts PEEK_WIDTH 와 같다.
+const PEEK_WIDTH: f64 = 300.0;
+/// 숨김 모드에서 접혀 있을 때 남기는 조각 폭(논리 px). 이 조각이 곧 마우스 감지 영역이다.
+const PEEK_SLIVER: f64 = 6.0;
+/// 내용 높이를 아직 모를 때(첫 배치) 쓰는 높이.
+const PEEK_DEFAULT_H: f64 = 320.0;
+
+/// 숨김 모드 창 상태. 접힘 = 가장자리 조각, 펼침 = 목록, 카드 = 가끔 보여 주는 요약.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PeekState {
+    Collapsed,
+    Open,
+    Card,
+}
+
+impl PeekState {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "collapsed" => Some(Self::Collapsed),
+            "open" => Some(Self::Open),
+            "card" => Some(Self::Card),
+            _ => None,
+        }
+    }
+}
+
+fn default_vpos() -> String {
+    "top".into()
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Placement {
-    /// "dock" | "float"
+    /// "dock" | "float" | "peek"
     pub mode: String,
     /// "left" | "right"
     pub edge: String,
     /// 모니터 장치 이름(`\\.\DISPLAY1`). "" 이거나 없어진 모니터면 주 모니터.
     pub monitor: String,
-    /// 논리 px(CSS px). 모니터 배율을 곱해 놓는다.
+    /// 논리 px(CSS px). 모니터 배율을 곱해 놓는다. 숨김 모드는 PEEK_WIDTH 고정이라 안 쓴다.
     pub width: u32,
+    /// 숨김 모드에서 나오는 높이: "top" | "middle" | "bottom". 옛 화면이 안 보내면 "top".
+    #[serde(default = "default_vpos")]
+    pub vpos: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -67,9 +99,20 @@ struct State {
     registered: bool,
     placement: Option<Placement>,
     hidden: bool,
+    /// 숨김 모드 상태와 화면이 잰 내용 높이(논리 px). 해상도가 바뀌어 다시 맞출 때도 이 값으로.
+    peek: PeekState,
+    peek_h: f64,
 }
 
-static STATE: Mutex<State> = Mutex::new(State { hwnd: 0, callback_msg: 0, registered: false, placement: None, hidden: false });
+static STATE: Mutex<State> = Mutex::new(State {
+    hwnd: 0,
+    callback_msg: 0,
+    registered: false,
+    placement: None,
+    hidden: false,
+    peek: PeekState::Collapsed,
+    peek_h: PEEK_DEFAULT_H,
+});
 /// 다시 맞추는 중에 온 알림(우리가 SETPOS 해서 생긴 ABN_POSCHANGED 등)으로 되돌아오는 고리를 끊는다.
 ///
 /// ⚠ 재진입 교착: SetWindowPos·SHAppBarMessage 는 **같은 스레드에서** 우리 창 프로시저를 다시 부를 수 있다.
@@ -199,6 +242,11 @@ fn apply_locked(st: &mut State) -> Result<(), String> {
         if right { d.rc.left = d.rc.right - w } else { d.rc.right = d.rc.left + w }
         unsafe { SHAppBarMessage(ABM_SETPOS, &mut d) };
         d.rc
+    } else if p.mode == "peek" {
+        // 숨김: 예약 없이, 높이는 내용만큼. 접혀 있으면 폭을 조각만큼으로 **줄인다** — 화면 밖으로 밀면
+        // 옆에 붙은 모니터로 삐져나와 보인다.
+        remove_locked(st);
+        peek_rect(m.work, m.info.scale, right, &p.vpos, st.peek, st.peek_h)
     } else {
         remove_locked(st);
         // 떠 있기: 예약 없이 작업 영역 전체 높이, 가장자리에서 살짝 띄운다.
@@ -212,6 +260,66 @@ fn apply_locked(st: &mut State) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// 숨김 모드 창 사각형(물리 px). 순수 함수 — 테스트가 붙는다.
+/// `height` = 화면이 잰 내용 높이(논리 px). 작업 영역(위·아래 FLOAT_GAP 여백)을 넘지 않게 자른다.
+/// 가장자리에 딱 붙인다(떠 있기와 달리 띄우지 않음) — 조각이 화면 끝에 있어야 마우스를 끝까지 밀어 닿는다.
+pub fn peek_rect(work: RECT, scale: f64, right: bool, vpos: &str, state: PeekState, height: f64) -> RECT {
+    let gap = (FLOAT_GAP * scale).round() as i32;
+    let avail = (work.bottom - work.top - 2 * gap).max(1);
+    let h = ((height.max(1.0) * scale).round() as i32).clamp(1, avail);
+    let w = (if state == PeekState::Collapsed { PEEK_SLIVER } else { PEEK_WIDTH } * scale).round() as i32;
+    let left = if right { work.right - w } else { work.left };
+    let top = match vpos {
+        "middle" => work.top + (work.bottom - work.top - h) / 2,
+        "bottom" => work.bottom - gap - h,
+        _ => work.top + gap,
+    };
+    RECT { left, top, right: left + w, bottom: top + h }
+}
+
+/// 숨김 모드 상태·내용 높이를 바꾸고 다시 놓는다. 숨김 모드가 아니면 기억만 한다.
+/// ⚠ 활성화하지 않는다(SWP_NOACTIVATE) — 가끔 보여 주는 카드가 타이핑 중인 입력을 가로채면 안 된다.
+pub fn set_peek(state: PeekState, height: f64) -> Result<(), String> {
+    guarded(|| {
+        let mut st = STATE.lock().map_err(|_| "상태 잠금 실패")?;
+        st.peek = state;
+        if height.is_finite() && height > 0.0 {
+            st.peek_h = height;
+        }
+        if st.placement.as_ref().map(|p| p.mode == "peek").unwrap_or(false) {
+            apply_locked(&mut st)
+        } else {
+            Ok(())
+        }
+    })
+}
+
+/// 마우스 커서가 위젯 창 위에 있는가(숨김 모드에서 '벗어나면 접기'). WebView 의 mouseleave 는 창 크기가 바뀌는
+/// 순간이나 화면 끝으로 나갈 때 빠질 수 있어, OS 에 직접 묻는다.
+pub fn cursor_inside() -> bool {
+    let raw = STATE.lock().map(|s| s.hwnd).unwrap_or(0);
+    if raw == 0 {
+        return false;
+    }
+    let mut pt = POINT::default();
+    let mut rc = RECT::default();
+    unsafe {
+        if GetCursorPos(&mut pt).is_err() || GetWindowRect(hwnd_of(raw), &mut rc).is_err() {
+            return false;
+        }
+    }
+    pt.x >= rc.left && pt.x < rc.right && pt.y >= rc.top && pt.y < rc.bottom
+}
+
+/// 지금 요약 카드를 보여도 되는가 — 전체 화면 앱(발표·게임)·방해 금지(조용한 시간) 중이면 false.
+/// 물어보지 못하면 보여 준다(fail-soft: 못 보여 주는 것보다 한 번 더 보이는 게 낫다).
+pub fn can_show_card() -> bool {
+    match unsafe { SHQueryUserNotificationState() } {
+        Ok(s) => s == QUNS_ACCEPTS_NOTIFICATIONS || s == QUNS_APP,
+        Err(_) => true,
+    }
 }
 
 /// 배치를 기억하고 적용한다. 이후 해상도·배율·작업 표시줄이 바뀌면 이 값으로 다시 맞춘다.
@@ -312,5 +420,62 @@ pub fn attach_autohide(hwnd_raw: isize, on_deactivate: impl Fn() + Send + Sync +
     let _ = ON_DEACTIVATE.set(Box::new(on_deactivate));
     unsafe {
         let _ = SetWindowSubclass(hwnd_of(hwnd_raw), Some(autohide_proc), 2, 0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1920×1080, 아래 작업 표시줄 48px.
+    const WORK: RECT = RECT { left: 0, top: 0, right: 1920, bottom: 1032 };
+
+    #[test]
+    fn peek_collapsed_is_a_sliver_at_the_right_edge() {
+        let r = peek_rect(WORK, 1.0, true, "top", PeekState::Collapsed, 400.0);
+        assert_eq!((r.left, r.top, r.right, r.bottom), (1914, 12, 1920, 412));
+    }
+
+    #[test]
+    fn peek_open_keeps_the_same_height_and_grows_inward() {
+        let r = peek_rect(WORK, 1.0, true, "top", PeekState::Open, 400.0);
+        assert_eq!((r.left, r.right, r.top, r.bottom), (1620, 1920, 12, 412));
+        let l = peek_rect(WORK, 1.0, false, "top", PeekState::Open, 400.0);
+        assert_eq!((l.left, l.right), (0, 300));
+    }
+
+    #[test]
+    fn peek_height_is_clamped_to_the_work_area() {
+        let r = peek_rect(WORK, 1.0, true, "top", PeekState::Open, 5000.0);
+        assert_eq!((r.top, r.bottom), (12, 1020));
+    }
+
+    #[test]
+    fn peek_vpos_middle_and_bottom() {
+        let m = peek_rect(WORK, 1.0, true, "middle", PeekState::Card, 200.0);
+        assert_eq!((m.top, m.bottom), (416, 616));
+        let b = peek_rect(WORK, 1.0, true, "bottom", PeekState::Card, 200.0);
+        assert_eq!((b.top, b.bottom), (820, 1020));
+        // 모르는 값은 위
+        let u = peek_rect(WORK, 1.0, true, "side", PeekState::Card, 200.0);
+        assert_eq!(u.top, 12);
+    }
+
+    #[test]
+    fn peek_scales_with_monitor_dpi() {
+        // 150% 모니터가 주 모니터 오른쪽(x 1920~)에 있을 때
+        let work = RECT { left: 1920, top: 0, right: 1920 + 2560, bottom: 1392 };
+        let c = peek_rect(work, 1.5, true, "top", PeekState::Collapsed, 400.0);
+        assert_eq!((c.right - c.left, c.top, c.bottom - c.top), (9, 18, 600));
+        let o = peek_rect(work, 1.5, true, "top", PeekState::Open, 400.0);
+        assert_eq!(o.right - o.left, 450);
+    }
+
+    #[test]
+    fn peek_state_parse() {
+        assert_eq!(PeekState::parse("open"), Some(PeekState::Open));
+        assert_eq!(PeekState::parse("card"), Some(PeekState::Card));
+        assert_eq!(PeekState::parse("collapsed"), Some(PeekState::Collapsed));
+        assert_eq!(PeekState::parse("x"), None);
     }
 }

@@ -22,6 +22,7 @@
 
 - **첫 화면 안내** — 할 일이 없을 때 사용법 네 줄과 '예시로 둘러보기'. 예시는 위쪽 띠의 '예시 지우기'로 한 번에 지웁니다.
 - **세로 위젯 · 도킹** — 작업 표시줄처럼 화면 한쪽을 차지해 다른 창이 덮지 않습니다. 모니터와 왼쪽·오른쪽을 고르고, 높이는 늘 작업 영역 전체. 떠 있기 모드와 폭 조절(300~440px)도 있습니다.
+- **숨김 모드** — 평소엔 화면 가장자리에 얇은 조각만 남고, 마우스를 대면 한 줄짜리 컴팩트 목록이 나옵니다. 원하면 정해 둔 간격(30분·1시간·2시간)마다 할 일 요약을 잠깐 보여 줘서 목록 자체를 잊지 않게 합니다. 알림이 아니라 소리도 없고 하던 입력을 가로채지 않으며, 전체 화면 앱·방해 금지 중엔 쉽니다.
 - **트레이 · 자동 실행** — 트레이 아이콘으로 보이기/숨기기, 로그인 시 자동 실행(설정에서 켬).
 - **한 입력줄** — 프로젝트를 고르고 적고 Enter. 고른 프로젝트는 그대로 남아 연달아 적을 수 있습니다. 외울 문법이 없습니다.
 - **프로젝트별 목록** — 프로젝트가 소제목, 그 아래 할 일. 진행 → 중요도 → 마감 순으로 정렬됩니다. 소제목을 끌어 프로젝트 순서를 바꾸고(Alt+↑↓), 두 번 눌러 이름을 바꿉니다.
@@ -80,6 +81,7 @@ Download a zip from [Releases](https://github.com/slnu21/todo-md/releases), unpa
 
 - **First-run guide** — with no to-dos you get four lines on how it works and "Explore with examples". Clear the examples in one go from the strip at the top.
 - **Tall widget · docking** — reserves one edge of the screen like the taskbar, so other windows never cover it. Pick the monitor and left or right edge; the height always fills the work area. Float mode and width (300–440 px) too.
+- **Auto-hide mode** — normally only a thin strip stays at the screen edge; point at it and a compact one-line-per-task list slides out. Optionally it briefly shows a summary of your to-dos every 30 min, 1 hour or 2 hours so you don't forget the list. It is not a reminder: no sound, it never steals what you are typing, and it pauses during full-screen apps and Do not disturb.
 - **Tray · launch at sign-in** — show or hide from the tray icon; launch at sign-in (turn on in Settings).
 - **One input line** — pick a project, type, press Enter. The project stays selected so you can keep typing. No syntax to memorize.
 - **Grouped by project** — projects are headings with their to-dos underneath, sorted by in-progress → importance → due date. Drag a heading to reorder projects (Alt+↑↓), double-click it to rename.

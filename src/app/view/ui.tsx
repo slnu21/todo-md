@@ -83,3 +83,32 @@ export function Seg<T extends string | number>({
 }
 
 export const IMPORTANCES: Importance[] = [1, 2, 3];
+
+/** 숨김 모드 제목 줄 아이콘(좁아서 글자 대신). 획은 currentColor. */
+export function FindIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <circle cx="7" cy="7" r="4.4" />
+      <path d="M10.4 10.4 14 14" />
+    </svg>
+  );
+}
+
+export function ReportIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="1.8" width="10" height="12.4" rx="1.5" />
+      <path d="M5.6 5.6h4.8M5.6 8.4h4.8M5.6 11.2h2.8" />
+    </svg>
+  );
+}
+
+/** 고정 핀. 눌려 있으면 속을 채운다(CSS `[aria-pressed=true] svg`). */
+export function PinIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path className="pin-head" d="M5.6 1.8h4.8l-.7 4.3 2.6 2.6H3.7l2.6-2.6z" />
+      <path d="M8 8.7v5.5" />
+    </svg>
+  );
+}

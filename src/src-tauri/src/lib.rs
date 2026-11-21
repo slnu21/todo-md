@@ -145,6 +145,25 @@ fn apply_placement(window: WebviewWindow, placement: appbar::Placement) -> Resul
     window.show().map_err(|e| e.to_string())
 }
 
+/// 숨김 모드: 상태(collapsed·open·card)와 내용 높이(논리 px)를 받아 창을 다시 놓는다. 활성화하지 않는다.
+#[tauri::command]
+fn peek_layout(state: String, height: f64) -> Result<(), String> {
+    let s = appbar::PeekState::parse(&state).ok_or_else(|| format!("모르는 숨김 상태: {state}"))?;
+    appbar::set_peek(s, height)
+}
+
+/// 숨김 모드: 커서가 위젯 창 위에 있는가(벗어나면 접기).
+#[tauri::command]
+fn peek_cursor_inside() -> bool {
+    appbar::cursor_inside()
+}
+
+/// 숨김 모드: 지금 요약 카드를 보여도 되는가(전체 화면 앱·방해 금지면 false).
+#[tauri::command]
+fn peek_can_show_card() -> bool {
+    appbar::can_show_card()
+}
+
 #[tauri::command]
 fn list_monitors() -> Vec<appbar::MonitorInfo> {
     appbar::list_monitors()
@@ -414,6 +433,9 @@ pub fn run() {
             backup_data_file,
             open_data_dir,
             apply_placement,
+            peek_layout,
+            peek_cursor_inside,
+            peek_can_show_card,
             list_monitors,
             hide_widget,
             get_autostart,

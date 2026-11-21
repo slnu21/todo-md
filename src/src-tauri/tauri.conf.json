@@ -17,7 +17,6 @@
         "title": "TODO.md",
         "width": 360,
         "height": 900,
-        "minWidth": 300,
         "resizable": false,
         "decorations": false,
         "alwaysOnTop": true,
