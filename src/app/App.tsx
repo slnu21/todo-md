@@ -48,6 +48,11 @@ export function App() {
     if (state.loaded) void io.applyPlacement({ ...dock, vpos }).catch(() => {});
   }, [state.loaded, dock, vpos]);
 
+  // 숨김 모드는 창이 투명하다(슬라이드 중 빈 자리로 바탕화면이 비친다) — 그 모드에서만 문서 바탕을 뺀다.
+  useEffect(() => {
+    document.documentElement.classList.toggle("peek-mode", dock.mode === "peek");
+  }, [dock.mode]);
+
   // 테마: 시스템이면 표시 없음(CSS 가 prefers-color-scheme 을 따른다), 직접 고르면 data-theme 으로 고정.
   useEffect(() => {
     const root = document.documentElement;

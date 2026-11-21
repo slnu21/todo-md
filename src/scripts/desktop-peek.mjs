@@ -146,11 +146,27 @@ try {
   r = widgetRect(app.pid);
   check("⑥ 아래: 작업 영역 아래 여백 12에 붙는다", !!r && r.b === before.b - gap && r.r === before.r, fmt(r));
 
-  // ⑦ 왼쪽
-  await place({ mode: "peek", edge: "left", monitor: "", width: 360, vpos: "top" });
-  await sleep(600);
+  // ⑦ 왼쪽 — 사용자처럼 **설정 화면에서** 바꾼다(place 로 Rust 만 옮기면 화면은 여전히 오른쪽 배치라 반대로 미끄러진다)
+  await place({ mode: "peek", edge: "right", monitor: "", width: 360, vpos: "top" });
+  await sleep(500);
   r = widgetRect(app.pid);
-  check("⑦ 왼쪽: 왼쪽 끝 조각", !!r && r.l === before.l && r.w === Math.round(6 * scale), fmt(r));
+  moveCursor(before.r - 2, (r?.t ?? 100) + 40);
+  await sleep(900);
+  await page.getByRole("button", { name: "설정", exact: true }).click();
+  await page.getByRole("button", { name: "주 모니터 왼쪽" }).click();
+  await sleep(500);
+  await page.keyboard.press("Escape"); // 설정 닫기 — 커서는 오른쪽 끝(이제 위젯 밖)이라 곧 접힌다
+  // 접히는 동안 패널이 어느 쪽으로 빠지는지 연속으로 본다(오른쪽으로 빠지면 양수)
+  const xs = [];
+  for (let i = 0; i < 120 && (await stateOf()) !== "collapsed"; i++) {
+    xs.push(await page.locator(".peek-panel").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m41));
+    await sleep(10);
+  }
+  const moving = xs.filter((x) => x !== 0);
+  check("⑦ 왼쪽(설정에서): 접힐 때 왼쪽으로 빠진다", moving.length > 0 && moving.every((x) => x < 0), `중간 값 ${moving.slice(0, 6).map(Math.round).join(",")}`);
+  await sleep(400);
+  r = widgetRect(app.pid);
+  check("   왼쪽 끝 조각", !!r && r.l === before.l && r.w === Math.round(6 * scale), fmt(r));
   moveCursor(before.l + 1, (r?.t ?? 100) + 40);
   await sleep(900);
   r = widgetRect(app.pid);

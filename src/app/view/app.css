@@ -318,17 +318,19 @@ button.s-row:hover { background: var(--surface); }
  * 창 크기는 Rust 가 정한다(접힘 = 폭 6px, 펼침·카드 = 300px, 높이 = 내용). 여기 DOM 은 늘 300px 로 그려 두고
  * 높이를 잰다 — 접혀 있을 때도 위젯은 보이지 않게 그려져 있어야 조각 높이(= 위젯 높이)를 안다.
  * 창이 투명하지 않아 둥근 모서리·그림자는 쓰지 않는다(모서리 바깥이 네모난 배경으로 보인다). */
-.peek { --peek-w: 300px; --peek-from: 24px; }
-.peek[data-edge="left"] { --peek-from: -24px; }
+html.peek-mode, html.peek-mode body { background: transparent; }
+.peek { --peek-w: 300px; --peek-out: 100%; --peek-in-ms: 200ms; --peek-out-ms: 150ms; }
+.peek[data-edge="left"] { --peek-out: -100%; }
 .peek-panel, .peek-card, .peek-sliver { position: fixed; top: 0; }
 .peek[data-edge="right"] :is(.peek-panel, .peek-card, .peek-sliver) { right: 0; }
 .peek[data-edge="left"] :is(.peek-panel, .peek-card, .peek-sliver) { left: 0; }
 .peek-panel { width: var(--peek-w); }
 .peek:not([data-state="open"]) .peek-panel { visibility: hidden; pointer-events: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .peek[data-state="open"] .peek-panel, .peek-card { animation: peek-in 150ms cubic-bezier(0.2, 0.7, 0.2, 1); }
-}
-@keyframes peek-in { from { transform: translateX(var(--peek-from)); opacity: 0.4; } }
+/* 슬라이드: 창은 먼저 300px 로 넓혀 두고(투명), 패널·카드만 가장자리 밖에서 밀어 넣는다(Windows 진입 = 감속 200ms,
+ * 나감 = 가속 150ms). 창 크기를 프레임마다 바꾸면 WebView2 가 깜빡인다 — docs/pitfalls.md. */
+.peek-panel, .peek-card { transform: translateX(var(--peek-out)); transition: transform var(--peek-out-ms) cubic-bezier(0.4, 0, 1, 1); }
+.peek[data-shown] :is(.peek-panel, .peek-card) { transform: none; transition: transform var(--peek-in-ms) cubic-bezier(0, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) { .peek :is(.peek-panel, .peek-card) { transition: none !important; } }
 
 /* 접힘: 가장자리 조각 = 감지 영역. 위젯이 차지하는 높이만큼만(모서리·작업 표시줄 근처는 반응하지 않는다). */
 .peek-sliver { width: 6px; height: var(--peek-h); border: 0; padding: 0; margin: 0; cursor: pointer; background: color-mix(in srgb, var(--accent) 28%, var(--bg)); transition: background 150ms; }
@@ -336,8 +338,9 @@ button.s-row:hover { background: var(--surface); }
 
 /* 컴팩트 위젯 */
 .widget.compact { height: auto; max-height: var(--peek-max); border: 1px solid var(--border); }
-.peek[data-edge="right"] .widget.compact { border-right: 0; }
-.peek[data-edge="left"] .widget.compact { border-left: 0; }
+/* 창이 투명해서 안쪽 모서리를 둥글게 할 수 있다(바깥쪽은 화면 끝에 붙는다). */
+.peek[data-edge="right"] :is(.widget.compact, .peek-card) { border-right: 0; border-radius: 8px 0 0 8px; }
+.peek[data-edge="left"] :is(.widget.compact, .peek-card) { border-left: 0; border-radius: 0 8px 8px 0; }
 .peek-panel.full .widget.compact { height: var(--peek-max); }
 .widget.compact .w-bar { gap: 2px; padding: 5px 6px 5px 12px; }
 .widget.compact .w-bar .name { font-size: 14px; }
@@ -371,8 +374,6 @@ button.s-row:hover { background: var(--surface); }
 
 /* 가끔 보여주기 카드 — 읽기 전용 요약. 마우스를 올리면 목록으로 바뀐다. */
 .peek-card { width: var(--peek-w); background: var(--bg); border: 1px solid var(--border); padding: 10px 12px 0; font-size: 13px; line-height: 1.5; cursor: default; overflow: hidden; }
-.peek[data-edge="right"] .peek-card { border-right: 0; }
-.peek[data-edge="left"] .peek-card { border-left: 0; }
 .pk-head { display: flex; align-items: baseline; gap: 8px; }
 .pk-head b { font-weight: 800; font-size: 14px; flex: 1; }
 .pk-head span { font-size: 12px; color: var(--muted); }
