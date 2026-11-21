@@ -15,7 +15,8 @@
 import { chromium } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PORT = 9357;
 const IDENTITY = process.env.TODOMD_MSIX_IDENTITY ?? "SlnU.TODO.md";
@@ -28,6 +29,13 @@ const screenW = () => Number(ps("Add-Type -AssemblyName System.Windows.Forms; [S
 
 const pkg = JSON.parse(ps(`Get-AppxPackage ${IDENTITY} | Select-Object PackageFamilyName, InstallLocation | ConvertTo-Json`) || "null");
 if (!pkg) { console.log(`SKIP  ${IDENTITY} 가 등록돼 있지 않다 → pack-msix.ps1 -Register`); process.exit(2); }
+// ⚠ 시험 등록(release\msix-stage 에서 개발자 모드)만 다룬다. 같은 이름의 정식 설치판(Store 등)이면 사용자의 실제 앱 —
+//   띄우거나 할 일을 넣으면 실데이터를 건드린다(2026-11-21 사고: 등록 실패를 놓쳐 설치판을 시험하고 지웠다).
+const STAGE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "release", "msix-stage").toLowerCase();
+if (String(pkg.InstallLocation ?? "").replace(/\\+$/, "").toLowerCase() !== STAGE) {
+  console.log(`FAIL  ${IDENTITY} 가 시험 등록이 아니라 설치판이다(${pkg.InstallLocation}) — 실데이터 보호로 멈춘다`);
+  process.exit(1);
+}
 if (count() > 0) { console.log("SKIP  todo-md 가 이미 떠 있다 — 끄고 다시"); process.exit(2); }
 const realDir = join(process.env.APPDATA, "com.slnu21.todo-md");
 if (existsSync(realDir)) { console.log(`SKIP  진짜 ${realDir} 가 있다(포터블판 데이터) — 건드리지 않으려고 멈춘다`); process.exit(2); }
