@@ -598,12 +598,12 @@ test("완료한 지 30일 지난 할 일은 보관 파일로 옮겨진다", asyn
 // ── 숨김 모드(peek) — 브라우저에서는 창이 그대로라 같은 DOM 이 화면 오른쪽 가장자리에 그려진다 ──
 
 /** 숨김 모드 설정을 심고 연다. `every` = 가끔 보여주기 간격(분), 0 = 끔. */
-async function freshPeek(page: Page, every = 0, url = "/?seed=sample") {
+async function freshPeek(page: Page, every = 0, url = "/?seed=sample", edge = "right") {
   await page.goto("/");
-  await page.evaluate((e) => {
+  await page.evaluate(([e, side]) => {
     localStorage.clear();
-    localStorage.setItem("todomd:settings.json", JSON.stringify({ dock: { mode: "peek", edge: "right" }, peek: { vpos: "top", every: e, showSec: 6 } }));
-  }, every);
+    localStorage.setItem("todomd:settings.json", JSON.stringify({ dock: { mode: "peek", edge: side }, peek: { vpos: "top", every: e, showSec: 6 } }));
+  }, [every, edge] as const);
   await page.goto(url);
   await expect(page.getByTestId("peek")).toBeAttached(); // 자식이 전부 fixed 라 자기 상자는 없다
 }
@@ -723,4 +723,24 @@ test("숨김: 펼친 채 설정을 열면 위젯이 작업 영역 높이로 커�
   await page.keyboard.press("Escape"); // 설정 닫기
   await expect(page.locator("#settings-pop")).toHaveCount(0);
   await expect(peekState(page)).toHaveAttribute("data-state", "collapsed", { timeout: 2000 });
+});
+
+test("숨김: 슬라이드 방향 — 오른쪽 가장자리면 오른쪽으로, 왼쪽이면 왼쪽으로 들어가고 나간다", async ({ page }) => {
+  // 빠진 자리 = 패널이 가장자리 바깥(오른쪽 +300 / 왼쪽 -300). 나가는 도중(150ms)에도 그쪽으로 움직여야 한다.
+  const offX = () => page.locator(".peek-panel").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m41);
+  for (const [edge, sign] of [["right", 1], ["left", -1]] as const) {
+    await freshPeek(page, 0, "/?seed=sample", edge);
+    await sliver(page).click();
+    await expect.poll(offX).toBe(0); // 들어와 있다
+    await page.keyboard.press("Escape"); // 접기 시작
+    await page.waitForTimeout(60);
+    const mid = await offX();
+    expect(mid * sign, `${edge}: 나가는 도중 ${mid}`).toBeGreaterThan(0);
+    await expect(peekState(page)).toHaveAttribute("data-state", "collapsed");
+    expect((await offX()) * sign).toBeGreaterThan(250);
+    // 조각도 그쪽 가장자리에
+    const box = (await sliver(page).boundingBox())!;
+    const vw = page.viewportSize()!.width;
+    expect(edge === "right" ? box.x + box.width : box.x).toBe(edge === "right" ? vw : 0);
+  }
 });
