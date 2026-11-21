@@ -594,3 +594,133 @@ test("완료한 지 30일 지난 할 일은 보관 파일로 옮겨진다", asyn
   expect(arch.items.map((i: { id: string }) => i.id)).toEqual(["old"]);
   expect(arch.projects).toEqual({ p1: "Atlas" });
 });
+
+// ── 숨김 모드(peek) — 브라우저에서는 창이 그대로라 같은 DOM 이 화면 오른쪽 가장자리에 그려진다 ──
+
+/** 숨김 모드 설정을 심고 연다. `every` = 가끔 보여주기 간격(분), 0 = 끔. */
+async function freshPeek(page: Page, every = 0, url = "/?seed=sample") {
+  await page.goto("/");
+  await page.evaluate((e) => {
+    localStorage.clear();
+    localStorage.setItem("todomd:settings.json", JSON.stringify({ dock: { mode: "peek", edge: "right" }, peek: { vpos: "top", every: e, showSec: 6 } }));
+  }, every);
+  await page.goto(url);
+  await expect(page.getByTestId("peek")).toBeAttached(); // 자식이 전부 fixed 라 자기 상자는 없다
+}
+const peekState = (page: Page) => page.getByTestId("peek");
+const sliver = (page: Page) => page.getByRole("button", { name: /마우스를 대면 목록이 나옵니다/ });
+const awayFromPanel = (page: Page) => page.mouse.move(8, 450); // 위젯(오른쪽 300px) 바깥
+
+test("숨김: 가장자리 조각에 머물면 펼치고, 벗어나면 접는다", async ({ page }) => {
+  await freshPeek(page);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed");
+  // 조각 높이 = 위젯 높이(작업 영역 전체가 아니다)
+  const sb = await sliver(page).boundingBox();
+  const wb = await page.getByTestId("widget").boundingBox();
+  expect(sb!.width).toBe(6);
+  expect(Math.abs(sb!.height - wb!.height)).toBeLessThan(2);
+  await sliver(page).hover();
+  await expect(peekState(page)).toHaveAttribute("data-state", "open");
+  await expect(page.locator("li.c-item").first()).toBeVisible();
+  await awayFromPanel(page);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed", { timeout: 2000 });
+});
+
+test("숨김: 스쳐 지나가면(0.3초 미만) 펼치지 않는다", async ({ page }) => {
+  await freshPeek(page);
+  await sliver(page).hover();
+  await awayFromPanel(page);
+  await page.waitForTimeout(500);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed");
+});
+
+test("숨김: 고정 핀을 누르면 마우스가 나가도 안 접힌다", async ({ page }) => {
+  await freshPeek(page);
+  await sliver(page).click();
+  await page.getByRole("button", { name: /고정 — 마우스가 나가도/ }).click();
+  await awayFromPanel(page);
+  await page.waitForTimeout(1200);
+  await expect(peekState(page)).toHaveAttribute("data-state", "open");
+  await page.getByRole("button", { name: "고정 풀기" }).click();
+  await awayFromPanel(page);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed", { timeout: 2000 });
+});
+
+test("숨김: 입력 중엔 안 접히고, 한 줄 목록에 바로 붙는다", async ({ page }) => {
+  await freshPeek(page);
+  await sliver(page).click();
+  await page.getByRole("button", { name: "할 일 추가" }).click();
+  const title = page.getByLabel("할 일", { exact: true });
+  await expect(title).toBeFocused();
+  await page.getByLabel("프로젝트").selectOption({ label: "Cairn" });
+  await title.fill("숨김에서 적은 일");
+  await title.press("Enter");
+  await expect(page.locator('section[data-project="p2"] li.c-item .t')).toContainText(["숨김에서 적은 일"]);
+  await awayFromPanel(page);
+  await page.waitForTimeout(1200);
+  await expect(peekState(page)).toHaveAttribute("data-state", "open"); // 입력줄이 펼쳐져 있다
+  await page.keyboard.press("Escape"); // 입력줄 접기
+  await expect(page.getByRole("button", { name: "할 일 추가" })).toBeVisible();
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed", { timeout: 2000 });
+});
+
+test("숨김: 한 줄 행 — 정렬은 같고, 상태·중요도를 누르면 바뀌고, 제목은 상세를 연다", async ({ page }) => {
+  await freshPeek(page);
+  await sliver(page).click();
+  const titles = await page.locator('section[data-project="p1"] li.c-item .t').allTextContents();
+  expect(titles).toEqual(["Store 재제출 (시작 메뉴 항목 정리한 패키지)", "업데이트 확인 저장소 이름 slnu21로", "스크린샷 다시 찍기"]);
+  const r = page.locator("li.c-item").filter({ hasText: "스크린샷 다시 찍기" });
+  const h = (await r.boundingBox())!.height;
+  expect(h).toBeLessThan(36); // 한 줄
+  await r.locator(".status").click();
+  await expect(r).toHaveClass(/doing/);
+  await r.locator(".imp").click();
+  await expect(r.locator(".imp")).toHaveAttribute("aria-label", /보통/);
+  await r.locator(".title-btn").click();
+  await expect(page.getByLabel("메모", { exact: true })).toBeVisible(); // 상세(브라우저는 위젯 위 패널)
+  await awayFromPanel(page);
+  await page.waitForTimeout(1200);
+  await expect(peekState(page)).toHaveAttribute("data-state", "open"); // 상세가 열려 있는 동안은 안 접힌다
+});
+
+test("숨김: 가끔 보여주기 — 켜면 카드가 잠깐 나왔다 들어가고, 간격마다 다시, 올리면 목록으로", async ({ page }) => {
+  await page.clock.install();
+  await freshPeek(page, 30);
+  await page.clock.runFor(1600);
+  const card = page.getByTestId("peek-card");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("오늘 마감");
+  await expect(card.locator("li")).toHaveCount(4);
+  await page.clock.runFor(6200);
+  await expect(card).toHaveCount(0);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed");
+  // 다음 간격: 30분 가까이 건너뛰고, 그 뒤는 1초씩(한 번에 넘기면 카드가 나왔다 들어간 뒤라 못 본다)
+  await page.clock.runFor(30 * 60_000 - 10_000);
+  await expect(card).toHaveCount(0);
+  for (let i = 0; i < 40 && (await card.count()) === 0; i++) await page.clock.runFor(1000);
+  await expect(card).toBeVisible();
+  await card.hover();
+  await expect(peekState(page)).toHaveAttribute("data-state", "open");
+});
+
+test("숨김: 가끔 보여주기를 끄면 카드가 안 나온다", async ({ page }) => {
+  await page.clock.install();
+  await freshPeek(page, 0);
+  await page.clock.runFor(3 * 60 * 60_000);
+  await expect(page.getByTestId("peek-card")).toHaveCount(0);
+});
+
+test("숨김: 펼친 채 설정을 열면 위젯이 작업 영역 높이로 커지고, 마우스가 나가도 안 접힌다", async ({ page }) => {
+  await freshPeek(page, 60);
+  await sliver(page).click();
+  const before = (await page.getByTestId("widget").boundingBox())!.height;
+  await page.getByRole("button", { name: "설정" }).click();
+  await expect(page.locator("#settings-pop")).toBeVisible();
+  await expect.poll(async () => (await page.getByTestId("widget").boundingBox())!.height).toBeGreaterThan(before);
+  await awayFromPanel(page);
+  await page.waitForTimeout(1200);
+  await expect(peekState(page)).toHaveAttribute("data-state", "open");
+  await page.keyboard.press("Escape"); // 설정 닫기
+  await expect(page.locator("#settings-pop")).toHaveCount(0);
+  await expect(peekState(page)).toHaveAttribute("data-state", "collapsed", { timeout: 2000 });
+});

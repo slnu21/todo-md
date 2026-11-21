@@ -9,6 +9,7 @@ import { sampleData } from "./core/sample";
 import { io } from "./io/io";
 import { startHost } from "./view/bridge";
 import { DATA_FILE, store, useStore } from "./view/store";
+import { PeekShell, type PeekCtl } from "./view/PeekShell";
 import { LangContext } from "./view/ui";
 import { Widget } from "./view/Widget";
 
@@ -42,9 +43,10 @@ export function App() {
   // 창 배치: 처음 읽은 뒤, 그리고 도킹 설정이 바뀔 때마다. 보이는 것도 이때 — 기본 위치에서 튀어 오르는 모습을 안 보이게.
   // 해상도·작업 표시줄이 바뀔 때 다시 맞추는 건 Rust 가 기억한 값으로 한다(appbar.rs).
   const dock = state.settings.dock;
+  const vpos = state.settings.peek.vpos;
   useEffect(() => {
-    if (state.loaded) void io.applyPlacement(dock).catch(() => {});
-  }, [state.loaded, dock]);
+    if (state.loaded) void io.applyPlacement({ ...dock, vpos }).catch(() => {});
+  }, [state.loaded, dock, vpos]);
 
   // 테마: 시스템이면 표시 없음(CSS 가 prefers-color-scheme 을 따른다), 직접 고르면 data-theme 으로 고정.
   useEffect(() => {
@@ -69,17 +71,26 @@ export function App() {
 
   if (!state.loaded) return <main className="widget" data-testid="loading" />;
 
+  const widget = (peek?: PeekCtl) => (
+    <Widget
+      state={state}
+      today={today}
+      dispatch={store.dispatch}
+      updateSettings={store.updateSettings}
+      onQuit={async () => { await store.flush(); await io.quit(); }}
+      onOpenDataDir={() => void io.openDataDir()}
+      onDismiss={store.dismissNotice}
+      peek={peek}
+    />
+  );
+
   return (
     <LangContext.Provider value={lang}>
-      <Widget
-        state={state}
-        today={today}
-        dispatch={store.dispatch}
-        updateSettings={store.updateSettings}
-        onQuit={async () => { await store.flush(); await io.quit(); }}
-        onOpenDataDir={() => void io.openDataDir()}
-        onDismiss={store.dismissNotice}
-      />
+      {dock.mode === "peek" ? (
+        <PeekShell data={state.data} today={today} settings={state.settings}>{(ctl) => widget(ctl)}</PeekShell>
+      ) : (
+        widget()
+      )}
     </LangContext.Provider>
   );
 }

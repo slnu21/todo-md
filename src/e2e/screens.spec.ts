@@ -189,3 +189,40 @@ test.describe("screens — 주간보고", () => {
     await shot(page, "14-report-dark-en");
   });
 });
+
+test.describe("screens — 숨김 모드", () => {
+  async function peek(page: Page, every: number, dark = false) {
+    if (dark) await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await page.evaluate((e) => {
+      localStorage.clear();
+      localStorage.setItem("todomd:settings.json", JSON.stringify({ dock: { mode: "peek", edge: "right" }, peek: { vpos: "top", every: e, showSec: 12 } }));
+    }, every);
+    await page.goto("/?seed=sample");
+    await expect(page.getByTestId("peek")).toBeAttached();
+  }
+
+  test("펼친 컴팩트 목록 — 라이트·다크", async ({ page }) => {
+    await peek(page, 0);
+    await page.getByRole("button", { name: /마우스를 대면/ }).click();
+    await shot(page, "20-peek-open");
+    await peek(page, 0, true);
+    await page.getByRole("button", { name: /마우스를 대면/ }).click();
+    await shot(page, "21-peek-open-dark");
+  });
+
+  test("접힌 조각과 요약 카드", async ({ page }) => {
+    await peek(page, 0);
+    await shot(page, "22-peek-collapsed");
+    await peek(page, 30);
+    await expect(page.getByTestId("peek-card")).toBeVisible({ timeout: 4000 });
+    await shot(page, "23-peek-card");
+  });
+
+  test("입력줄 펼침", async ({ page }) => {
+    await peek(page, 0);
+    await page.getByRole("button", { name: /마우스를 대면/ }).click();
+    await page.getByRole("button", { name: "할 일 추가" }).click();
+    await shot(page, "24-peek-quick");
+  });
+});

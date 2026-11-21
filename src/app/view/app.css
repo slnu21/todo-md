@@ -313,3 +313,81 @@ button.s-row:hover { background: var(--surface); }
 .s-memo { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .s-memo time { color: var(--faint); margin-right: 6px; }
 .search mark { background: var(--hl); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+/* ── 숨김 모드(peek) — 기준은 docs/design/mockup/peek.html ──
+ * 창 크기는 Rust 가 정한다(접힘 = 폭 6px, 펼침·카드 = 300px, 높이 = 내용). 여기 DOM 은 늘 300px 로 그려 두고
+ * 높이를 잰다 — 접혀 있을 때도 위젯은 보이지 않게 그려져 있어야 조각 높이(= 위젯 높이)를 안다.
+ * 창이 투명하지 않아 둥근 모서리·그림자는 쓰지 않는다(모서리 바깥이 네모난 배경으로 보인다). */
+.peek { --peek-w: 300px; --peek-from: 24px; }
+.peek[data-edge="left"] { --peek-from: -24px; }
+.peek-panel, .peek-card, .peek-sliver { position: fixed; top: 0; }
+.peek[data-edge="right"] :is(.peek-panel, .peek-card, .peek-sliver) { right: 0; }
+.peek[data-edge="left"] :is(.peek-panel, .peek-card, .peek-sliver) { left: 0; }
+.peek-panel { width: var(--peek-w); }
+.peek:not([data-state="open"]) .peek-panel { visibility: hidden; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .peek[data-state="open"] .peek-panel, .peek-card { animation: peek-in 150ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+}
+@keyframes peek-in { from { transform: translateX(var(--peek-from)); opacity: 0.4; } }
+
+/* 접힘: 가장자리 조각 = 감지 영역. 위젯이 차지하는 높이만큼만(모서리·작업 표시줄 근처는 반응하지 않는다). */
+.peek-sliver { width: 6px; height: var(--peek-h); border: 0; padding: 0; margin: 0; cursor: pointer; background: color-mix(in srgb, var(--accent) 28%, var(--bg)); transition: background 150ms; }
+.peek-sliver:hover, .peek-sliver:focus-visible { background: color-mix(in srgb, var(--accent) 60%, var(--bg)); }
+
+/* 컴팩트 위젯 */
+.widget.compact { height: auto; max-height: var(--peek-max); border: 1px solid var(--border); }
+.peek[data-edge="right"] .widget.compact { border-right: 0; }
+.peek[data-edge="left"] .widget.compact { border-left: 0; }
+.peek-panel.full .widget.compact { height: var(--peek-max); }
+.widget.compact .w-bar { gap: 2px; padding: 5px 6px 5px 12px; }
+.widget.compact .w-bar .name { font-size: 14px; }
+.ib { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; border-radius: 5px; }
+.ib svg { width: 15px; height: 15px; }
+.ib[aria-pressed="true"], .ib[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.ib.pin[aria-pressed="true"] .pin-head { fill: currentColor; }
+.widget.compact .cal { padding: 4px 8px; }
+.widget.compact .cal-head .m { font-size: 13px; }
+.widget.compact .day { height: 25px; font-size: 12px; }
+.widget.compact .day .n { width: 22px; height: 22px; }
+.quick-closed { flex: none; display: flex; gap: 6px; width: 100%; border: 0; border-bottom: 1px solid var(--border); background: none; text-align: left; padding: 7px 12px; font-size: 13px; color: var(--faint); cursor: text; }
+.quick-closed:hover, .quick-closed:focus-visible { color: var(--muted); background: var(--surface); }
+.widget.compact .quick { padding: 7px 8px 8px; gap: 5px; }
+/* 목록: 내용만큼(창 높이 = 위젯 높이), 상한에 닿으면 그 안에서 스크롤. 펼친 팝오버(full) 땐 남는 높이를 채운다. */
+.widget.compact .w-list { flex: 1 1 auto; padding: 0 10px 10px; }
+.c-list .group-head { padding: 9px 0 2px; }
+.c-list .group-head h3 { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-list .counts { font-size: 11px; }
+.c-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; gap: 0 6px; align-items: center; min-height: 30px; }
+.c-item .status { width: 22px; height: 22px; padding: 2px; }
+.c-item .status svg { width: 18px; height: 18px; }
+.c-item .title-btn { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 0; font-size: 13px; line-height: 1.4; }
+.c-item .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.c-item .who { font-size: 11px; flex: none; white-space: nowrap; overflow-wrap: normal; }
+.c-item .subc { font-size: 11px; color: var(--faint); flex: none; }
+.c-due { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.c-item .imp { padding: 2px; }
+.c-list .done-toggle { margin-top: 4px; }
+.c-list .guide { margin-top: 10px; }
+
+/* 가끔 보여주기 카드 — 읽기 전용 요약. 마우스를 올리면 목록으로 바뀐다. */
+.peek-card { width: var(--peek-w); background: var(--bg); border: 1px solid var(--border); padding: 10px 12px 0; font-size: 13px; line-height: 1.5; cursor: default; overflow: hidden; }
+.peek[data-edge="right"] .peek-card { border-right: 0; }
+.peek[data-edge="left"] .peek-card { border-left: 0; }
+.pk-head { display: flex; align-items: baseline; gap: 8px; }
+.pk-head b { font-weight: 800; font-size: 14px; flex: 1; }
+.pk-head span { font-size: 12px; color: var(--muted); }
+.pk-counts { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
+.pk-counts b { color: var(--fg); font-weight: 700; }
+.pk-counts .today b { background: var(--hl); padding: 0 3px; border-radius: 2px; }
+.pk-counts .late b { color: var(--red); }
+.peek-card ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.peek-card li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 7px; align-items: center; min-height: 28px; }
+.peek-card li svg { width: 18px; height: 18px; display: block; }
+.peek-card li .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.peek-card li.doing .t { font-weight: 600; background: linear-gradient(transparent 50%, var(--hl) 50%, var(--hl) 94%, transparent 94%); }
+.peek-card li :is(.side, .due-late, .due-today) { font-size: 11.5px; white-space: nowrap; }
+.peek-card li .side { color: var(--muted); max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.pk-more { font-size: 11.5px; color: var(--faint); padding: 5px 0 9px; border-top: 1px solid var(--border); }
+.pk-timer { height: 2px; margin: 0 -12px; background: var(--accent); transform-origin: left; animation: pk-drain var(--show, 6s) linear forwards; }
+.peek-card:hover .pk-timer { animation-play-state: paused; }
+@keyframes pk-drain { to { transform: scaleX(0); } }

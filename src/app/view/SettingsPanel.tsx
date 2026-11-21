@@ -3,8 +3,8 @@
  * 모니터 그림은 Windows 디스플레이 설정처럼 **실제 배치 비율**로 그린다.
  */
 import { useEffect, useState } from "react";
-import type { CloseAction, LangPref, Settings, ThemePref } from "../core/settings";
-import { WIDTH_MAX, WIDTH_MIN } from "../core/settings";
+import type { CloseAction, DockMode, LangPref, PeekEvery, PeekShow, PeekVpos, Settings, ThemePref } from "../core/settings";
+import { PEEK_EVERY, PEEK_SHOW, WIDTH_MAX, WIDTH_MIN } from "../core/settings";
 import { io, type MonitorInfo } from "../io/io";
 import { Seg, useT } from "./ui";
 
@@ -41,6 +41,8 @@ export function SettingsPanel({
 
   const dock = settings.dock;
   const setDock = (patch: Partial<Settings["dock"]>) => onChange((s) => ({ ...s, dock: { ...s.dock, ...patch } }));
+  const setPeek = (patch: Partial<Settings["peek"]>) => onChange((s) => ({ ...s, peek: { ...s.peek, ...patch } }));
+  const peek = dock.mode === "peek";
 
   // 모니터 그림: 전체 배치의 테두리 상자에 맞춰 줄인다.
   const minX = Math.min(...monitors.map((m) => m.x), 0);
@@ -81,8 +83,23 @@ export function SettingsPanel({
           <div className="pop-row">
             <div>
               <h4>{t("set.mode")}</h4>
-              <Seg items={[{ v: "dock", label: t("mode.dock") }, { v: "float", label: t("mode.float") }]} value={dock.mode} onPick={(v) => setDock({ mode: v })} />
+              <Seg<DockMode>
+                items={[{ v: "dock", label: t("mode.dock") }, { v: "float", label: t("mode.float") }, { v: "peek", label: t("mode.peek") }]}
+                value={dock.mode}
+                onPick={(v) => setDock({ mode: v })}
+              />
             </div>
+            {peek ? (
+              <div>
+                <h4>{t("set.vpos")}</h4>
+                <Seg<PeekVpos>
+                  label={t("set.vpos")}
+                  items={(["top", "middle", "bottom"] as const).map((v) => ({ v, label: t(`vpos.${v}`) }))}
+                  value={settings.peek.vpos}
+                  onPick={(v) => setPeek({ vpos: v })}
+                />
+              </div>
+            ) : (
             <div className="grow">
               <h4>{t("set.width")} <span className="val">{dock.width}px</span></h4>
               <input
@@ -95,8 +112,33 @@ export function SettingsPanel({
                 onChange={(e) => setDock({ width: +e.target.value })}
               />
             </div>
+            )}
           </div>
-          <p className="note">{t("set.note")}</p>
+          {peek && (
+            <div className="pop-row">
+              <div>
+                <h4>{t("set.peekEvery")}</h4>
+                <Seg<PeekEvery>
+                  label={t("set.peekEvery")}
+                  items={PEEK_EVERY.map((v) => ({ v, label: t(`every.${v}`) }))}
+                  value={settings.peek.every}
+                  onPick={(v) => setPeek({ every: v })}
+                />
+              </div>
+              {settings.peek.every > 0 && (
+                <div>
+                  <h4>{t("set.peekShow")}</h4>
+                  <Seg<PeekShow>
+                    label={t("set.peekShow")}
+                    items={PEEK_SHOW.map((v) => ({ v, label: t(`show.${v}`) }))}
+                    value={settings.peek.showSec}
+                    onPick={(v) => setPeek({ showSec: v })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <p className="note">{t(peek ? "set.peekNote" : "set.note")}</p>
         </>
       )}
       <div className="pop-row">

@@ -6,11 +6,16 @@ import { invoke } from "@tauri-apps/api/core";
 
 /** Rust appbar::Placement 와 같은 모양. */
 export interface Placement {
-  mode: "dock" | "float";
+  mode: "dock" | "float" | "peek";
   edge: "left" | "right";
   monitor: string;
   width: number;
+  /** 숨김 모드에서 나오는 높이. */
+  vpos: "top" | "middle" | "bottom";
 }
+
+/** 숨김 모드 창 상태 — 접힘(가장자리 조각) · 펼침(목록) · 카드(가끔 보여 주는 요약). */
+export type PeekState = "collapsed" | "open" | "card";
 
 export interface MonitorInfo {
   name: string;
@@ -35,6 +40,14 @@ export interface Io {
   /** 위젯 배치(도킹/떠 있기 · 가장자리 · 모니터 · 폭). 기억해 두고 해상도가 바뀌면 Rust 가 다시 맞춘다. */
   applyPlacement(p: Placement): Promise<void>;
   listMonitors(): Promise<MonitorInfo[]>;
+  /** 숨김 모드: 상태와 내용 높이(px)로 창을 다시 놓는다(활성화하지 않음). */
+  peekLayout(state: PeekState, height: number): Promise<void>;
+  /** 숨김 모드: 커서가 위젯 창 위에 있는가. 브라우저는 모른다(null) — 화면이 DOM 으로 판단한다. */
+  peekCursorInside(): Promise<boolean | null>;
+  /** 숨김 모드: 지금 요약 카드를 보여도 되는가(전체 화면 앱·방해 금지면 false). */
+  peekCanShowCard(): Promise<boolean>;
+  /** 상세 창이 떠 있는가(숨김 모드: 떠 있는 동안은 접지 않는다). */
+  isDetailVisible(): Promise<boolean>;
   /** 트레이로 숨기기(예약도 푼다). */
   hideWidget(): Promise<void>;
   /** Store(MSIX) 설치판인가. 포터블 전용 기능(로그인 시 자동 실행)을 숨기는 데 쓴다. */
@@ -70,6 +83,10 @@ const tauriIo: Io = {
   openDataDir: () => invoke("open_data_dir"),
   applyPlacement: (placement) => invoke("apply_placement", { placement }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
+  peekLayout: (state, height) => invoke("peek_layout", { state, height }),
+  peekCursorInside: () => invoke<boolean>("peek_cursor_inside"),
+  peekCanShowCard: () => invoke<boolean>("peek_can_show_card"),
+  isDetailVisible: () => invoke<boolean>("is_window_visible", { label: "detail" }),
   hideWidget: () => invoke("hide_widget"),
   isPackaged: () => invoke<boolean>("is_packaged"),
   getAutostart: () => invoke<boolean>("get_autostart"),
@@ -107,6 +124,10 @@ const browserIo: Io = {
   applyPlacement: async () => {},
   // 브라우저에는 모니터를 물을 방법이 없다 — 설정 화면이 그림을 그릴 수 있게 화면 하나를 흉내 낸다.
   listMonitors: async () => [{ name: "", primary: true, x: 0, y: 0, width: screen.width, height: screen.height, scale: devicePixelRatio }],
+  peekLayout: async () => {},
+  peekCursorInside: async () => null,
+  peekCanShowCard: async () => true,
+  isDetailVisible: async () => false,
   hideWidget: async () => {},
   isPackaged: async () => false,
   getAutostart: async () => false,

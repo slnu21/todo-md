@@ -31,7 +31,6 @@ export function ItemList({
   const [confirming, setConfirming] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [armClear, setArmClear] = useState(false);
   /** 끌고 있는 프로젝트와 지금 놓일 자리 표시(위로 = 대상 앞 줄, 아래로 = 대상 뒤 줄). */
   const [drag, setDrag] = useState<{ id: string; over: string | null } | null>(null);
 
@@ -64,23 +63,7 @@ export function ItemList({
 
   return (
     <div className="w-list" data-testid="list">
-      {hasSample(data) && (
-        <div className="ex-banner" role="status">
-          <span>{t("ex.banner")}</span>
-          <button
-            type="button"
-            className={"textbtn" + (armClear ? " armed" : "")}
-            onClick={() => {
-              if (!armClear) { setArmClear(true); return; }
-              dispatch({ type: "clearSample" });
-              setArmClear(false);
-            }}
-            onBlur={() => setArmClear(false)}
-          >
-            {armClear ? t("ex.confirm") : t("ex.clear")}
-          </button>
-        </div>
-      )}
+      <SampleBanner data={data} dispatch={dispatch} />
       {selDate && (
         <div className="filter">
           <span>{t("list.filter", { date: mdLabel(lang, selDate), n: dueOnCount(data, selDate) })}</span>
@@ -195,20 +178,8 @@ export function ItemList({
         </section>
       ))}
       {selDate && groups.length === 0 && <p className="empty">{t("list.emptyDay")}</p>}
-      {!selDate && data.items.length === 0 && (
-        // 할 일이 하나도 없을 때(첫 실행)만 — 다 끝내서 비었을 땐 아래 한 줄로 충분하다.
-        <div className="guide" data-testid="guide">
-          <h4>{t("guide.title")}</h4>
-          <ol>
-            <li>{t("guide.add")}</li>
-            <li>{t("guide.status")}</li>
-            <li>{t("guide.detail")}</li>
-            <li>{t("guide.report")}</li>
-          </ol>
-          <button type="button" onClick={() => dispatch({ type: "addSample", sample: sampleData(today, lang) })}>{t("guide.try")}</button>
-          <small>{t("guide.tryHint")}</small>
-        </div>
-      )}
+      {/* 할 일이 하나도 없을 때(첫 실행)만 — 다 끝내서 비었을 땐 아래 한 줄로 충분하다. */}
+      {!selDate && data.items.length === 0 && <Guide today={today} dispatch={dispatch} />}
       {!selDate && noItems && data.items.length > 0 && <p className="empty">{t("list.emptyAll")}</p>}
       {archived.length > 0 && !selDate && (
         <div className="archive-box">
@@ -228,6 +199,48 @@ export function ItemList({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** 예시 데이터가 있을 때 맨 위 띠 — '예시 지우기'는 두 번 눌러야 지운다. 숨김 모드 목록도 같이 쓴다. */
+export function SampleBanner({ data, dispatch }: { data: TodoData; dispatch: Dispatch }) {
+  const { t } = useT();
+  const [armClear, setArmClear] = useState(false);
+  if (!hasSample(data)) return null;
+  return (
+    <div className="ex-banner" role="status">
+      <span>{t("ex.banner")}</span>
+      <button
+        type="button"
+        className={"textbtn" + (armClear ? " armed" : "")}
+        onClick={() => {
+          if (!armClear) { setArmClear(true); return; }
+          dispatch({ type: "clearSample" });
+          setArmClear(false);
+        }}
+        onBlur={() => setArmClear(false)}
+      >
+        {armClear ? t("ex.confirm") : t("ex.clear")}
+      </button>
+    </div>
+  );
+}
+
+/** 첫 화면 안내(할 일이 하나도 없을 때) + 예시로 둘러보기. */
+export function Guide({ today, dispatch }: { today: PlainDate; dispatch: Dispatch }) {
+  const { lang, t } = useT();
+  return (
+    <div className="guide" data-testid="guide">
+      <h4>{t("guide.title")}</h4>
+      <ol>
+        <li>{t("guide.add")}</li>
+        <li>{t("guide.status")}</li>
+        <li>{t("guide.detail")}</li>
+        <li>{t("guide.report")}</li>
+      </ol>
+      <button type="button" onClick={() => dispatch({ type: "addSample", sample: sampleData(today, lang) })}>{t("guide.try")}</button>
+      <small>{t("guide.tryHint")}</small>
     </div>
   );
 }
